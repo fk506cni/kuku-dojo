@@ -1,0 +1,77 @@
+# ============================================
+# kuku-dojo - .gitignore
+# ============================================
+
+# --- 参照資料・アーカイブ ---
+refs/
+__archives/
+
+docs/__archives/
+
+# セッション開始プロンプト (開発過程資料、公開対象外)
+docs/start*.md
+
+# --- 一時ファイル・試作 ---
+jank/
+drafts/
+
+# --- 開発用メッセージファイル ---
+message.md
+
+# --- 開発用ヘルパスクリプト (本レポジトリ特化、公開対象外) ---
+scripts/commit-push.sh
+scripts/archive_message.sh
+scripts/backup.sh
+scripts/stage-add.md
+
+# --- 配布物 (任意) ---
+# 完全オフライン版のインライン化済み HTML は dist/ に格納予定
+dist/
+
+# --- ビルド中間成果物 ---
+# scripts/build-dist.mjs が Tailwind CLI / Babel 事前コンパイル用に使う一時ディレクトリ
+dist-tmp/
+
+# --- 生成物・キャッシュ ---
+*.tmp
+*.bak
+*.swp
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.idea/
+.vscode/
+*.code-workspace
+
+# --- Node (使う場合) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# --- パッケージ・アーカイブ ---
+*.zip
+*.tar.gz
+
+# --- 環境変数 ---
+.env
+.env.local
+.env.*.local
+
+# --- 開発マーカー ---
+.development
+
+# --- Claude ---
+.claudeignore
+
+# ============================================
+# 注: 本プロジェクトの成果物は index.html (ルート) なので
+# *.html は除外しない（元テンプレから変更）
+#
+# 公開レポジトリ向けに `main/` / `data/` / `docker/` は削除済み (publication_plan.md 参照)
+# ============================================

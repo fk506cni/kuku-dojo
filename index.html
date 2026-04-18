@@ -1,0 +1,3859 @@
+<!doctype html>
+<!-- KUKU-HEADER-START -->
+<!--
+  kuku-dojo (くくどうじょう) - 九九練習アプリ
+  Version: 1.0.0 (Step 10 配布版ビルドパイプライン完成 / 開発版 index.html)
+  Build:   2026-04-18 (開発版 / CDN 経由)
+
+  配布版 dist/kuku-dojo.html は `npm run build` (scripts/build-dist.mjs) で生成する。
+  本ファイルは実装中の利便性のためだけに存在し、エンドユーザーへの配布対象ではない。
+-->
+<!-- KUKU-HEADER-END -->
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>くくどうじょう</title>
+
+    <!-- 絵文字ファビコン: 外部ファイル無しで「じぶんのアプリ」感を出す (C01-12) -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%90%B1%3C%2Ftext%3E%3C%2Fsvg%3E" />
+
+    <!-- KUKU-CDN-START -->
+    <!-- Tailwind Play CDN: ビルド不要で単一HTML配布を成立させるため。 -->
+    <!-- Tailwind は semver 付き CDN URL を公開していないため URL 上ピン留め不可。 -->
+    <!-- マイナー更新時の挙動差異は README.md の「開発者向け」運用メモで吸収する (C01-05)。 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React / ReactDOM / Babel: ブラウザ内 JSX 変換で外部ビルドを回避。 -->
+    <!-- マイナーまでピンし CDN 側サイレント退行を防ぐ (C01-05)。 -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+    <!-- KUKU-CDN-END -->
+
+    <!-- SPEC.md §5.0 / CLAUDE.md 光過敏性チェックリスト準拠: prefers-reduced-motion フォールバック (C04-14) -->
+    <!-- ユーザーが OS 設定でアニメ抑制を指示した場合、Tailwind のトランジション・カスタム animation も全停止する -->
+    <!-- Step 7 追加の kuku-* keyframes も * セレクタで停止するので個別対応不要 -->
+    <style>
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          /* C08-04: forwards fill-mode を打ち消す。toast-pop 等 100% opacity:0 keyframe を
+             forwards で定着させる inline style があり、reduced-motion で要素が完全に非表示になる退行を防ぐ */
+          animation-fill-mode: none !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+        /* C10-07: backdrop-filter: blur は transition 対象外で上の transition-duration 無効化では落とせない。
+           reduced-motion 指定下では blur を無効化してフォーカスアシストが効くコントラストを確保する。
+           モーダル背景 (WelcomeNotice / CreateAccountModal / DeleteConfirmModal / PauseConfirmModal) に適用される。 */
+        .backdrop-blur-sm, .backdrop-blur {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+      }
+
+      /* Step 7 子供向けエフェクト用 keyframes (SPEC §5.0 PSE 配慮)
+         - 全周期 ≥ 0.33s (3Hz 超の点滅を出さない)
+         - infinite は breath (4s=0.25Hz) / tilt (2s=0.5Hz) のみ、いずれも ≤ 1Hz
+         - background-color の白⇄黒切替は使わず transform / opacity 補間のみ
+         - 1 回きりの演出は全て 1.5s 以内で終息 */
+      @keyframes kuku-mascot-breath {
+        0%, 100% { transform: scale(1); }
+        50%      { transform: scale(1.06); }
+      }
+      @keyframes kuku-mascot-tilt {
+        0%, 100% { transform: rotate(-4deg); }
+        50%      { transform: rotate(4deg); }
+      }
+      @keyframes kuku-mascot-bounce {
+        0%   { transform: translateY(0); }
+        30%  { transform: translateY(-14px); }
+        60%  { transform: translateY(0); }
+        100% { transform: translateY(0); }
+      }
+      @keyframes kuku-mascot-shake {
+        0%, 100% { transform: translateX(0); }
+        25%      { transform: translateX(-5px); }
+        75%      { transform: translateX(5px); }
+      }
+      @keyframes kuku-mascot-jump {
+        0%   { transform: translateY(0) scale(1); }
+        40%  { transform: translateY(-26px) scale(1.08); }
+        80%  { transform: translateY(0) scale(1); }
+        100% { transform: translateY(0) scale(1); }
+      }
+      @keyframes kuku-toast-pop {
+        0%   { opacity: 0; transform: translate(-50%, -12px); }
+        15%  { opacity: 1; transform: translate(-50%, 0); }
+        85%  { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, -8px); }
+      }
+      @keyframes kuku-combo-pop {
+        0%   { transform: scale(0.85); }
+        40%  { transform: scale(1.12); }
+        100% { transform: scale(1); }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-100">
+    <!-- CDN 失敗時フォールバックと初回 Paint ⇄ React レンダ間の空白対策 (C01-06 / C01-19)。 -->
+    <!-- React マウント時に root の中身ごと上書きされるため、動作時の影響なし。 -->
+    <div id="root">
+      <noscript>
+        <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;font-family:sans-serif">
+          <div style="text-align:center">
+            <h1 style="font-size:2.5rem;color:#4338ca">くくどうじょう</h1>
+            <p style="margin-top:1rem;color:#475569">このアプリを つかうには JavaScript を ゆうこうにしてね</p>
+          </div>
+        </main>
+      </noscript>
+      <main class="min-h-screen flex items-center justify-center p-8">
+        <div class="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100 text-center">
+          <h1 class="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">くくどうじょう</h1>
+          <p class="mt-4 text-lg text-slate-600">よみこみちゅう…</p>
+        </div>
+      </main>
+    </div>
+
+    <script type="text/babel" data-presets="react">
+      // 起動時間ベースライン計測の開始点 (SPEC.md §6.1 / C01-02)
+      performance.mark("kuku-app-script-start");
+
+      const { useState, useEffect, useMemo, useRef, useContext } = React;
+
+      // ── types (JSDoc) ─────────────────────────────────────────────
+      // 参照: SPEC.md §2.2
+
+      /**
+       * @typedef {Object} Account
+       * @property {string} id          - UUID
+       * @property {string} name        - ニックネーム（最大10文字）
+       * @property {number} avatarIndex - アバター番号 (0..N)
+       * @property {number} createdAt   - 作成日時 (UNIX ms)
+       */
+
+      /**
+       * @typedef {Object<string, number>} WeightMap
+       * キー: "{dan}-{multiplier}"（例: "7-8"）, 値: weight (>= 0.5)
+       */
+
+      /**
+       * @typedef {Object} SessionResult
+       * @property {string} sessionId
+       * @property {number} timestamp
+       * @property {number[]} selectedDans
+       * @property {number} totalQuestions
+       * @property {number} correctCount
+       * @property {number} elapsedTime    - 秒
+       * @property {QuestionDetail[]} details
+       */
+
+      /**
+       * @typedef {Object} QuestionDetail
+       * @property {number} dan
+       * @property {number} multiplier
+       * @property {number} correctAnswer
+       * @property {number} userAnswer
+       * @property {boolean} isCorrect
+       * @property {number} responseTime   - ms
+       */
+
+      /**
+       * @typedef {Object} Settings
+       * @property {boolean} soundEnabled
+       * @property {boolean} effectsEnabled
+       * @property {number}  volume              - 0.0 - 1.0
+       * @property {number}  wrongWeightBoost    - 不正解加算 (+2.0) の倍率。SPEC §3.2 参照。
+       *                                            0.5 (ひかえめ) / 1.0 (ふつう、既定) / 2.0 (しっかり)
+       */
+
+      /**
+       * QuizScreen 内部の回答フィードバック状態 (C06-12)。
+       * Step 6 ResultScreen 側の QuestionDetail と shape が似るため、混同しないよう明示する。
+       * feedback は「今回の入力が正解か不正解か」の一時表示用途のみで、永続化されない。
+       * @typedef {null | { kind: "correct"|"wrong", userAnswer: number, correctAnswer: number }} Feedback
+       */
+
+      // ── storage ───────────────────────────────────────────────────
+      // キー prefix: kuku_ (SPEC.md §2.1)
+      // onStorageError は App 側で Storage._onStorageError に登録する (SPEC.md §2.4)
+
+      /** 簡易 UUID v4 生成 */
+      function uuid() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+          const r = (Math.random() * 16) | 0;
+          const v = c === "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      }
+
+      const Util = { uuid };
+
+      /** @type {Settings} */
+      const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0 });
+      // 3 段プリセット。WRONG_WEIGHT_BOOST_PRESETS の順は UI 表示順と一致させる (ひかえめ → ふつう → しっかり)。
+      const WRONG_WEIGHT_BOOST_PRESETS = Object.freeze([
+        { value: 0.5, label: "ひかえめ",   desc: "まちがえても ちょっとだけ でやすくなる" },
+        { value: 1.0, label: "ふつう",     desc: "まちがえた もんだいが でやすくなる (きじゅん)" },
+        { value: 2.0, label: "しっかり",   desc: "まちがえた もんだいが たくさん でやすくなる" },
+      ]);
+      const SESSION_LIMIT = 100;
+      const QUOTA_TRIM_COUNT = 10;
+
+      /**
+       * localStorage から JSON を安全に読む。
+       * SyntaxError / SecurityError 時はキーを破棄して fallback を返す (SPEC.md §2.4)。
+       * @param {string} key
+       * @param {*} fallback
+       * @returns {*}
+       */
+      function _readJSON(key, fallback) {
+        if (!Storage._available) return fallback;
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw === null) return fallback;
+          return JSON.parse(raw);
+        } catch (e) {
+          if (e instanceof SyntaxError || e.name === "SecurityError") {
+            console.warn("[kuku-dojo] storage: corrupted or inaccessible, discarding:", key, e.message);
+            try { localStorage.removeItem(key); } catch (_) {}
+          } else {
+            console.warn("[kuku-dojo] storage: unexpected read error:", key, e.message);
+          }
+          return fallback;
+        }
+      }
+
+      /**
+       * localStorage に JSON を安全に書く。
+       * QuotaExceededError 時はセッション履歴を削って再試行 (SPEC.md §2.4)。
+       * @param {string} key
+       * @param {*} value
+       * @param {string|null} [accountId] - 容量超過時にセッション削除する対象アカウント
+       * @returns {boolean}
+       */
+      function _writeJSON(key, value, accountId) {
+        if (!Storage._available) return false;
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+          return true;
+        } catch (e) {
+          if (e.name === "QuotaExceededError" || e.code === 22) {
+            if (_trimOldestSessions(accountId)) {
+              try {
+                localStorage.setItem(key, JSON.stringify(value));
+                return true;
+              } catch (_) {}
+            }
+            console.warn("[kuku-dojo] storage: quota exceeded, retry failed:", key);
+            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            return false;
+          }
+          console.warn("[kuku-dojo] storage: write failed:", key, e.message);
+          if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+          return false;
+        }
+      }
+
+      /**
+       * 指定アカウント（または全アカウント）の古いセッションを QUOTA_TRIM_COUNT 件削除して空きを作る。
+       * @param {string|null|undefined} accountId
+       * @returns {boolean} 1 件以上削除できたら true
+       */
+      function _trimOldestSessions(accountId) {
+        try {
+          const ids = accountId
+            ? [accountId]
+            : Storage.loadAccounts().map(function (a) { return a.id; });
+          let trimmed = false;
+          for (let i = 0; i < ids.length; i++) {
+            const sKey = "kuku_sessions_" + ids[i];
+            const raw = localStorage.getItem(sKey);
+            if (!raw) continue;
+            let sessions;
+            try {
+              sessions = JSON.parse(raw);
+            } catch (_) {
+              // corrupted JSON: _readJSON と同じ破棄方針でキーを除去 (C02-15)
+              try { localStorage.removeItem(sKey); } catch (__) {}
+              trimmed = true;
+              continue;
+            }
+            if (!Array.isArray(sessions) || sessions.length === 0) continue;
+            sessions.sort(function (a, b) { return a.timestamp - b.timestamp; });
+            sessions.splice(0, Math.min(QUOTA_TRIM_COUNT, sessions.length));
+            localStorage.setItem(sKey, JSON.stringify(sessions));
+            trimmed = true;
+          }
+          return trimmed;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      const Storage = {
+        /** @type {((msg: string) => void) | null} */
+        _onStorageError: null,
+        _available: true,
+
+        /**
+         * プライベートブラウズ検出: 起動直後に書き込みテスト (SPEC.md §2.4)。
+         * @returns {boolean}
+         */
+        checkAvailability() {
+          try {
+            var testKey = "kuku__storage_test";
+            localStorage.setItem(testKey, "1");
+            localStorage.removeItem(testKey);
+            Storage._available = true;
+          } catch (e) {
+            Storage._available = false;
+            console.warn("[kuku-dojo] storage: not available (private browsing?)", e.message);
+            if (Storage._onStorageError) {
+              Storage._onStorageError("このブラウザでは せいせきが ほぞん できません");
+            }
+          }
+          return Storage._available;
+        },
+
+        /** @returns {Account[]} */
+        loadAccounts() {
+          return _readJSON("kuku_accounts", []);
+        },
+
+        /**
+         * @param {Account[]} accounts
+         * @returns {boolean} 書き込み成功で true、_available===false / QuotaExceeded 再試行失敗で false (C04-05)
+         */
+        saveAccounts(accounts) {
+          return _writeJSON("kuku_accounts", accounts);
+        },
+
+        /** @returns {string|null} */
+        loadCurrentAccountId() {
+          if (!Storage._available) return null;
+          try {
+            return localStorage.getItem("kuku_current_account_id") || null;
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: cannot read current account id:", e.message);
+            return null;
+          }
+        },
+
+        /**
+         * @param {string|null} id
+         * @returns {boolean} 書き込み成功で true、失敗で false (C04-05)
+         */
+        saveCurrentAccountId(id) {
+          if (!Storage._available) return false;
+          try {
+            if (id === null) {
+              localStorage.removeItem("kuku_current_account_id");
+            } else {
+              localStorage.setItem("kuku_current_account_id", id);
+            }
+            return true;
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: cannot write current account id:", e.message);
+            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            return false;
+          }
+        },
+
+        /**
+         * @param {string} accountId
+         * @returns {WeightMap}
+         */
+        loadWeights(accountId) {
+          return _readJSON("kuku_weights_" + accountId, {});
+        },
+
+        /**
+         * @param {string} accountId
+         * @param {WeightMap} weights
+         * @returns {boolean} 書き込み成否 (C04-05)
+         */
+        saveWeights(accountId, weights) {
+          return _writeJSON("kuku_weights_" + accountId, weights, accountId);
+        },
+
+        /**
+         * @param {string} accountId
+         * @returns {SessionResult[]}
+         */
+        loadSessions(accountId) {
+          return _readJSON("kuku_sessions_" + accountId, []);
+        },
+
+        /**
+         * 100 件を超えたら古い順に切り落とす (SPEC.md §2.3)。
+         * C07-09: 呼び出し側契約「末尾 = 新セッション」を守り、clock skew (端末時計巻き戻り) で
+         * 新セッションが最古扱いになっても trim の対象にしない。
+         * @param {string} accountId
+         * @param {SessionResult[]} sessions
+         * @returns {boolean} 書き込み成否 (C04-05)
+         */
+        saveSessions(accountId, sessions) {
+          try {
+            // 末尾 = 新セッションを常に保持し、それ以外を timestamp 昇順で並べ替えて末尾側を残す。
+            const keepNewestTrim = function (arr, limit) {
+              if (arr.length <= limit) return arr;
+              const newest = arr[arr.length - 1];
+              const others = arr.slice(0, -1);
+              others.sort(function (a, b) { return a.timestamp - b.timestamp; });
+              return others.slice(others.length - (limit - 1)).concat([newest]);
+            };
+            sessions = keepNewestTrim(sessions, SESSION_LIMIT);
+            if (_writeJSON("kuku_sessions_" + accountId, sessions, accountId)) return true;
+            // Quota 回復失敗: sessions をさらに削減してリトライ (C02-02)。末尾は変わらず保持。
+            const reduced = keepNewestTrim(sessions, Math.max(1, sessions.length - QUOTA_TRIM_COUNT));
+            return _writeJSON("kuku_sessions_" + accountId, reduced, accountId);
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: saveSessions failed:", e.message);
+            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            return false;
+          }
+        },
+
+        /**
+         * @param {string} accountId
+         * @returns {Settings}
+         */
+        loadSettings(accountId) {
+          const raw = _readJSON("kuku_settings_" + accountId, null);
+          // 旧バージョンで保存された Settings に wrongWeightBoost 等の新フィールドが
+          // 無い場合は DEFAULT_SETTINGS で欠損分だけ補う (前方互換マイグレーション)。
+          // C11-04: typeof [] === "object" なので配列は typeof ガードを通過する。
+          // 配列が入っていると数値インデックスキー "0"/"1"/... が Settings に混入するため明示除外。
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_SETTINGS };
+          const merged = { ...DEFAULT_SETTINGS, ...raw };
+          // C11-06: wrongWeightBoost が 3 プリセット (0.5/1.0/2.0) 外のときは 1.0 (ふつう) に正規化。
+          // localStorage 手編集で 1.5 等が入ると SettingsModal の 3 ボタンが全非選択になる UX 退行を防ぐ。
+          const presetValues = WRONG_WEIGHT_BOOST_PRESETS.map(function (p) { return p.value; });
+          if (presetValues.indexOf(merged.wrongWeightBoost) === -1) {
+            merged.wrongWeightBoost = DEFAULT_SETTINGS.wrongWeightBoost;
+          }
+          return merged;
+        },
+
+        /**
+         * @param {string} accountId
+         * @param {Settings} settings
+         * @returns {boolean} 書き込み成否 (C04-05)
+         */
+        saveSettings(accountId, settings) {
+          return _writeJSON("kuku_settings_" + accountId, settings, accountId);
+        },
+
+        /**
+         * アカウント削除: 関連する全 kuku_* キーを破棄 (SPEC.md §2.5)。
+         * kuku_*_{accountId} パターンに一致するキーも列挙して掃除する。
+         * @param {string} accountId
+         */
+        deleteAccount(accountId) {
+          try {
+            // kuku_accounts から除去
+            const accounts = Storage.loadAccounts().filter(function (a) { return a.id !== accountId; });
+            Storage.saveAccounts(accounts);
+
+            // kuku_current_account_id が一致すれば null に
+            if (Storage.loadCurrentAccountId() === accountId) {
+              Storage.saveCurrentAccountId(null);
+            }
+
+            // kuku_*_{accountId} パターンに一致するキーを全て削除
+            const suffix = "_" + accountId;
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith("kuku_") && key.endsWith(suffix)) {
+                keysToRemove.push(key);
+              }
+            }
+            for (let j = 0; j < keysToRemove.length; j++) {
+              try { localStorage.removeItem(keysToRemove[j]); } catch (_) {}
+            }
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: deleteAccount failed:", accountId, e.message);
+          }
+        },
+
+        /**
+         * 初回起動判定 (Step 9)。
+         * `kuku_welcomed` が true で書き込まれていれば既に案内を見た判定。
+         * プライベートブラウズ等で Storage._available=false のときは毎回 true を返すと
+         * 注意書きが毎回出てうるさいため、false（= 表示しない）を返す。
+         * @returns {boolean} true なら「まだ案内を見ていない」
+         */
+        isFirstLaunch() {
+          if (!Storage._available) return false;
+          return _readJSON("kuku_welcomed", false) !== true;
+        },
+
+        /**
+         * 初回案内を「見た」状態に永続化する。
+         * C10-11: 書き込み可否を呼び出し側に伝えるため boolean を返す。
+         * 失敗時 (Quota / プライベートブラウズ直後) は _onStorageError 経由で「ほぞん できなかったよ」が表示され、
+         * 次回起動で WelcomeNotice が再度出る。呼び出し側はそれを踏まえた UX 判断を行うこと。
+         * @returns {boolean} 書き込み成功で true
+         */
+        markLaunched() {
+          return _writeJSON("kuku_welcomed", true);
+        },
+      };
+
+      // ── engine ────────────────────────────────────────────────────
+      // 参照: SPEC.md §3.1〜§3.3
+
+      /**
+       * 全 81 問 (1×1〜9×9) の重みを 1.0 で初期化する。
+       * @returns {WeightMap}
+       */
+      function initialWeights() {
+        const w = {};
+        for (let dan = 1; dan <= 9; dan++) {
+          for (let m = 1; m <= 9; m++) {
+            w[dan + "-" + m] = 1.0;
+          }
+        }
+        return w;
+      }
+
+      /**
+       * 重み比例の抽選で次の出題を選ぶ (SPEC.md §3.1)。
+       * @param {number[]} selectedDans - 選択された段。空 / null / undefined / 値域外 / 重複は冒頭で正規化
+       * @param {WeightMap} weights - null / undefined は空オブジェクト扱い
+       * @param {string[]} recent - 直前 2 問のキー配列。null / undefined は空配列扱い
+       * @returns {{ dan: number, multiplier: number }}
+       */
+      function pickQuestion(selectedDans, weights, recent) {
+        // 0. 入力正規化 — SPEC §3.1「エンジン側もランタイムエラーにならない自己防御」
+        // null / undefined / 非整数 / 値域外 / 重複を弾いて正規化する (C03-01 / C03-03 / C03-05)
+        const validDans = (Array.isArray(selectedDans) ? selectedDans : [])
+          .filter(function (d) { return Number.isInteger(d) && d >= 1 && d <= 9; });
+        const dedupedDans = Array.from(new Set(validDans));
+        const dans = dedupedDans.length > 0 ? dedupedDans : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        const safeRecent = Array.isArray(recent) ? recent : [];
+        const safeWeights = (weights && typeof weights === "object") ? weights : {};
+
+        // 1. 候補プール
+        const pool = [];
+        for (let i = 0; i < dans.length; i++) {
+          for (let m = 1; m <= 9; m++) {
+            pool.push({ dan: dans[i], multiplier: m, key: dans[i] + "-" + m });
+          }
+        }
+
+        // 2. recent 除外（候補が空になる場合は除外しない）
+        const filtered = pool.filter(function (c) { return safeRecent.indexOf(c.key) === -1; });
+        const candidates = filtered.length > 0 ? filtered : pool;
+
+        // 3. 各候補に重みを割当
+        // 4. 累積重み配列で抽選
+        let total = 0;
+        const cumulative = [];
+        for (let i = 0; i < candidates.length; i++) {
+          const w = safeWeights[candidates[i].key] !== undefined ? safeWeights[candidates[i].key] : 1.0;
+          total += w;
+          cumulative.push(total);
+        }
+
+        const r = Math.random() * total;
+        for (let i = 0; i < cumulative.length; i++) {
+          if (r < cumulative[i]) {
+            return { dan: candidates[i].dan, multiplier: candidates[i].multiplier };
+          }
+        }
+        // 浮動小数点の丸め誤差で末尾に到達した場合
+        const last = candidates[candidates.length - 1];
+        return { dan: last.dan, multiplier: last.multiplier };
+      }
+
+      /**
+       * 重みを更新する。元オブジェクトを破壊しない (SPEC.md §3.2)。
+       * 不正解: +2.0 * wrongWeightBoost / 正解: -0.3 / 下限 0.5 / 上限 10.0 (C03-07)
+       * wrongWeightBoost は Settings で 0.5 (ひかえめ) / 1.0 (ふつう) / 2.0 (しっかり) から選択。
+       * 既定 1.0 は従来挙動と互換。上位の 2.0 は +4.0/回、下位の 0.5 は +1.0/回となる。
+       * 上限 10.0 でクランプされるため、しっかりでも 3 連続不正解で上限に届く想定 (1→5→9→10)。
+       * @param {WeightMap} weights
+       * @param {number} dan
+       * @param {number} multiplier
+       * @param {boolean} isCorrect
+       * @param {number} [wrongWeightBoost=1.0] - 不正解加算の倍率 (Settings.wrongWeightBoost)
+       * @returns {WeightMap}
+       */
+      function updateWeight(weights, dan, multiplier, isCorrect, wrongWeightBoost) {
+        const boost = typeof wrongWeightBoost === "number" && wrongWeightBoost > 0 ? wrongWeightBoost : 1.0;
+        const key = dan + "-" + multiplier;
+        const current = weights[key] !== undefined ? weights[key] : 1.0;
+        const next = isCorrect ? current - 0.3 : current + 2.0 * boost;
+        const newWeights = Object.assign({}, weights);
+        newWeights[key] = Math.min(10.0, Math.max(0.5, next));
+        return newWeights;
+      }
+
+      /**
+       * 習熟度レベルを算出する (SPEC.md §3.3)。
+       * 上位から順に評価し、最初にマッチしたレベルを返す。
+       * 苦手側 (L1/L2) は OR で早期救済、得意側 (L4) は AND で慎重に格上げ (C03-12)。
+       * L3 は L1/L2/L4 のいずれにも該当しない中間状態すべてを吸収する包括ルール (C03-02 / SPEC §3.3)。
+       * @param {number} weight - 現在の重み
+       * @param {number} correctRate - 直近正答率 (0.0〜1.0)
+       * @param {number} attempts - 総挑戦回数
+       * @returns {number} 0..4
+       */
+      function proficiencyLevel(weight, correctRate, attempts) {
+        if (attempts === 0) return 0;
+        if (weight >= 2.0 || correctRate < 0.4) return 1;
+        if (weight >= 1.2 || correctRate < 0.7) return 2;
+        if (weight <= 0.6 && correctRate >= 0.9) return 4;
+        return 3; // L1/L2/L4 のいずれにも該当しない領域を包括 (SPEC §3.3)
+      }
+
+      const Engine = { initialWeights, pickQuestion, updateWeight, proficiencyLevel };
+
+      // ── effects ───────────────────────────────────────────────────
+      // SoundPlayer: Web Audio API シングルトン。外部音源ファイルは使わず
+      // OscillatorNode + GainNode の包絡で音を生成する (SPEC §5.2)。
+      //
+      // 設計上の要点:
+      // - AudioContext は最初のユーザー操作で遅延生成する (iOS/macOS Safari の自動再生ポリシー対策)
+      // - ensureAudioContext は resume() を同期的に呼び、await は resume の Promise に対してのみ行う。
+      //   await の後に resume を呼ぶと「最初のジェスチャの tick」を外れて suspended のままになる端末がある。
+      // - settings は React 外から参照するため、App 側の useEffect で SoundPlayer.setSettings を呼ぶ契約にする。
+      //   soundEnabled === false ならすべての play 系は即 return (prompts.md Step 7 要件)。
+      // - OscillatorNode は start/stop した後は再利用不可。再生ごとに生成する。
+      const SoundPlayer = {
+        _ctx: null,
+        _resumed: false,
+        _settings: { soundEnabled: true, volume: 0.4 },
+
+        /**
+         * settings の更新を受け取る。App 側の useEffect から呼び出される。
+         * volume は 0.0〜1.0 の範囲にクランプ (不正値耐性)。
+         */
+        setSettings(next) {
+          if (!next || typeof next !== "object") return;
+          const vol = typeof next.volume === "number" && Number.isFinite(next.volume)
+            ? Math.max(0, Math.min(1, next.volume))
+            : 0.4;
+          this._settings = {
+            soundEnabled: next.soundEnabled !== false,
+            volume: vol,
+          };
+        },
+
+        /**
+         * 最初のユーザー操作で呼ぶ。AudioContext を生成し suspended なら resume する。
+         * async 関数だが resume() の呼び出しは await を挟まずに同期発火させる。
+         * C08-01: state === "closed"/"interrupted" (iOS 電話着信・画面ロック復帰等) は ctx を破棄して再生成する。
+         */
+        async ensureAudioContext() {
+          try {
+            // C08-01: 既存 ctx が使えない状態なら破棄して作り直す
+            if (this._ctx && (this._ctx.state === "closed" || this._ctx.state === "interrupted")) {
+              this._ctx = null;
+              this._resumed = false;
+            }
+            if (!this._ctx) {
+              const Ctor = window.AudioContext || window.webkitAudioContext;
+              if (!Ctor) return null;
+              this._ctx = new Ctor();
+            }
+            if (this._ctx.state === "suspended") {
+              // ジェスチャ tick 内で同期的に resume() を発火させる。
+              // Promise を return するブラウザ (Chrome/Firefox) と undefined を返す古い Safari の両対応。
+              const p = this._ctx.resume();
+              if (p && typeof p.then === "function") {
+                await p;
+              }
+            }
+            this._resumed = this._ctx.state === "running";
+            return this._ctx;
+          } catch (e) {
+            console.warn("[kuku-dojo] audio: ensureAudioContext failed:", e && e.message);
+            return null;
+          }
+        },
+
+        /**
+         * C08-01: ページ復帰 / 可視性変化で ctx が interrupted 相当になっている可能性があるため、
+         *        次の play 前に ensureAudioContext を走らせ直す契約にするためのマーク。
+         */
+        invalidate() {
+          this._resumed = false;
+        },
+
+        /**
+         * 共通再生ヘルパー。tones 配列の各要素を順に Oscillator で鳴らす。
+         * 先頭 10ms でフェードイン、末尾で exponentialRampToValueAtTime で自然減衰させ
+         * ぷちっというノイズ (DC オフセット起因) を避ける。
+         * @param {{freq:number, delay:number, duration:number, type?:string, peak?:number}[]} tones
+         */
+        _playTones(tones) {
+          if (!this._settings.soundEnabled) return;
+          if (!this._ctx || !this._resumed) return;
+          // C08-01: ctx が closed / interrupted 状態で createOscillator すると InvalidStateError が
+          //        同期的に throw されるため、state チェック + try/catch で二重防御する。
+          //        例外発生時は _resumed を false に戻し、次のユーザー操作で再 resume される経路に乗せる。
+          if (this._ctx.state !== "running") {
+            this._resumed = false;
+            return;
+          }
+          try {
+            const ctx = this._ctx;
+            const master = ctx.createGain();
+            master.gain.value = this._settings.volume;
+            master.connect(ctx.destination);
+            const start = ctx.currentTime;
+            for (let i = 0; i < tones.length; i++) {
+              const t = tones[i];
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = t.type || "sine";
+              osc.frequency.value = t.freq;
+              osc.connect(gain);
+              gain.connect(master);
+              const beginAt = start + (t.delay || 0);
+              const endAt = beginAt + t.duration;
+              const peak = typeof t.peak === "number" ? t.peak : 0.7;
+              gain.gain.setValueAtTime(0.0001, beginAt);
+              gain.gain.linearRampToValueAtTime(peak, beginAt + 0.01);
+              gain.gain.exponentialRampToValueAtTime(0.0005, endAt);
+              osc.start(beginAt);
+              osc.stop(endAt + 0.03);
+            }
+          } catch (e) {
+            // C08-01: iOS 電話着信復帰等で createOscillator が InvalidStateError を投げるケース。
+            //        次の firstGesture 相当の呼び出しで ensureAudioContext を再実行させるためフラグを落とす。
+            this._resumed = false;
+            console.warn("[kuku-dojo] audio: _playTones failed:", e && e.message);
+          }
+        },
+
+        playCorrect() {
+          this._playTones([
+            { freq: 523.25, delay: 0.00, duration: 0.14, type: "sine" },  // C5
+            { freq: 659.25, delay: 0.09, duration: 0.14, type: "sine" },  // E5
+            { freq: 783.99, delay: 0.18, duration: 0.22, type: "sine" },  // G5
+          ]);
+        },
+        playWrong() {
+          this._playTones([
+            // 強い不協和音は避け、柔らかい低音を 1 音だけ減衰。自己否定感を煽らない (SPEC §5.1)
+            { freq: 246.94, delay: 0.00, duration: 0.28, type: "triangle", peak: 0.5 }, // B3
+          ]);
+        },
+        playClick() {
+          this._playTones([
+            { freq: 1200, delay: 0.00, duration: 0.04, type: "square", peak: 0.25 },
+          ]);
+        },
+        playFanfare() {
+          this._playTones([
+            { freq: 523.25, delay: 0.00, duration: 0.18, type: "sine" },  // C5
+            { freq: 659.25, delay: 0.18, duration: 0.18, type: "sine" },  // E5
+            { freq: 783.99, delay: 0.36, duration: 0.18, type: "sine" },  // G5
+            { freq: 1046.50, delay: 0.54, duration: 0.40, type: "sine", peak: 0.75 }, // C6
+          ]);
+        },
+      };
+
+      // ── effect components ─────────────────────────────────────────
+      // ConfettiCanvas / MascotCharacter / ComboCounter / CelebrationToast は全て
+      // useContext(AppContext).settings.effectsEnabled を参照し、OFF 時は null を返す。
+      // AppContext は後方で createContext するが、関数ボディの評価は render 時なので順序問題なし。
+
+      // パステル調の紙吹雪色 (Tailwind の *-200 相当): 原色の高彩度ベタ塗りを避ける (SPEC §5.0)
+      const CONFETTI_COLORS = ["#fbcfe8", "#fde68a", "#bfdbfe", "#bbf7d0", "#ddd6fe", "#fed7aa"];
+      const CONFETTI_LIFETIME_MS = 1500;  // SPEC §5.0: 個別エフェクトは 1.5 秒以内に終息
+
+      /**
+       * 画面全体の紙吹雪 Canvas。burstId を変えると新しいバーストが追加される。
+       * 一度に描画する領域は粒ごとに数 px² で合計 < 画面面積 25% (PSE 配慮)。
+       * count は 10-30 (正解時) / 60-100 (セッション完了時) を想定。
+       * shape: "square" (既定) / "star"。5 連続時は星バースト。
+       * effectsEnabled=false なら canvas ごと null を返して DOM にも出さない。
+       */
+      function ConfettiCanvas({ burstId, count, shape }) {
+        const { settings } = useContext(AppContext);
+        const enabled = !!(settings && settings.effectsEnabled);
+        const canvasRef = useRef(null);
+        const rafRef = useRef(0);
+        const particlesRef = useRef([]);
+        const dimsRef = useRef({ w: 0, h: 0 });
+        const lastTsRef = useRef(0);
+
+        // 星型パスを Path2D で事前生成しておく (毎フレーム再構築を避ける)
+        const starPathRef = useRef(null);
+        useEffect(() => {
+          if (typeof Path2D === "undefined") return;
+          const p = new Path2D();
+          // 5 角星: 外半径 1, 内半径 0.45
+          for (let i = 0; i < 10; i++) {
+            const r = i % 2 === 0 ? 1 : 0.45;
+            const a = -Math.PI / 2 + (i * Math.PI) / 5;
+            const x = Math.cos(a) * r;
+            const y = Math.sin(a) * r;
+            if (i === 0) p.moveTo(x, y); else p.lineTo(x, y);
+          }
+          p.closePath();
+          starPathRef.current = p;
+        }, []);
+
+        const startLoop = () => {
+          if (rafRef.current) return;
+          lastTsRef.current = performance.now();
+          const tick = (t) => {
+            const canvas = canvasRef.current;
+            if (!canvas) { rafRef.current = 0; return; }
+            const ctx2d = canvas.getContext("2d");
+            const { w, h } = dimsRef.current;
+            const dt = Math.min(0.05, (t - lastTsRef.current) / 1000);
+            lastTsRef.current = t;
+            ctx2d.clearRect(0, 0, w, h);
+            const list = particlesRef.current;
+            const next = [];
+            for (let i = 0; i < list.length; i++) {
+              const p = list[i];
+              const age = t - p.born;
+              if (age > p.life) continue;
+              p.vy += 360 * dt;    // gravity
+              p.x += p.vx * dt;
+              p.y += p.vy * dt;
+              p.rot += p.vrot * dt;
+              // 後半 1/3 で opacity フェード (白⇄黒フラッシュを避け滑らかに消す)
+              const fadeStart = p.life * 0.66;
+              const fade = age < fadeStart ? 1 : Math.max(0, 1 - (age - fadeStart) / (p.life - fadeStart));
+              ctx2d.save();
+              ctx2d.globalAlpha = fade;
+              ctx2d.translate(p.x, p.y);
+              ctx2d.rotate(p.rot);
+              ctx2d.fillStyle = p.color;
+              if (p.shape === "star" && starPathRef.current) {
+                const s = p.size;
+                ctx2d.scale(s, s);
+                ctx2d.fill(starPathRef.current);
+              } else {
+                ctx2d.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+              }
+              ctx2d.restore();
+              next.push(p);
+            }
+            particlesRef.current = next;
+            if (next.length > 0) {
+              rafRef.current = requestAnimationFrame(tick);
+            } else {
+              ctx2d.clearRect(0, 0, w, h);
+              rafRef.current = 0;
+            }
+          };
+          rafRef.current = requestAnimationFrame(tick);
+        };
+
+        useEffect(() => {
+          if (!enabled) return;
+          if (!burstId) return;
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          const dpr = window.devicePixelRatio || 1;
+          canvas.width = Math.floor(w * dpr);
+          canvas.height = Math.floor(h * dpr);
+          canvas.style.width = w + "px";
+          canvas.style.height = h + "px";
+          const ctx2d = canvas.getContext("2d");
+          ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+          dimsRef.current = { w, h };
+
+          const N = Math.max(1, Math.min(150, count || 15));
+          const originX = w / 2;
+          const originY = h * 0.35;
+          const now = performance.now();
+          const isStar = shape === "star";
+          for (let i = 0; i < N; i++) {
+            // 上向きに広がる扇形 (-π/2 中心に ±π/2 の範囲)
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI;
+            const speed = 180 + Math.random() * 280;
+            particlesRef.current.push({
+              x: originX + (Math.random() - 0.5) * 40,
+              y: originY,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              size: isStar ? 10 + Math.random() * 6 : 7 + Math.random() * 6,
+              color: CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0],
+              rot: Math.random() * Math.PI * 2,
+              vrot: (Math.random() - 0.5) * 6,
+              born: now,
+              life: CONFETTI_LIFETIME_MS,
+              shape: isStar ? "star" : "square",
+            });
+          }
+          startLoop();
+        }, [burstId, enabled, count, shape]);
+
+        // アンマウント時の rAF 停止 + 粒バッファ破棄 (SPEC §4.2 ConfettiCanvas 要件)
+        useEffect(() => {
+          return () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = 0;
+            particlesRef.current = [];
+          };
+        }, []);
+
+        if (!enabled) return null;
+        return (
+          <canvas
+            ref={canvasRef}
+            aria-hidden="true"
+            className="fixed inset-0 pointer-events-none z-40"
+          />
+        );
+      }
+
+      // マスコット絵文字: LOGIN_AVATARS (🐱🐶🐰🐼🦊🐸🐯🐻) と被らない 1 種類を選定 (C04-18)
+      const MASCOT_EMOJI = "🦉";
+      // C08-06: SPEC §5.3 celebrate 持続時間 (3 連続 1200ms / 5 連続・結果画面 1500ms) を差別化。
+      // 呼び出し側 (QuizScreen / ResultScreen) が combo / 正答率に応じて celebrateDurationMs を渡す。
+      const MASCOT_CELEBRATE_MS_DEFAULT = 1500;
+      const MASCOT_CELEBRATE_MS_SHORT = 1200;
+
+      /**
+       * マスコット「くくちゃん」。state を props で受け取り表情/動作を切り替える (SPEC §5.3)。
+       * celebrate 中に別 state が来ても上書きせず、アニメ完了 (props 指定の celebrateDurationMs) まで待つ。
+       * effectsEnabled=false は return null でテキストのみ表示に退行する。
+       * @param {Object} props
+       * @param {"idle"|"thinking"|"happy"|"sad"|"celebrate"} [props.state]
+       * @param {"sm"|"md"|"lg"} [props.size]
+       * @param {number} [props.celebrateDurationMs] - SPEC §5.3 準拠で 3連続=1200 / 5連続=1500 / 結果=1500 を呼び出し側が指定
+       */
+      function MascotCharacter({ state, size, celebrateDurationMs }) {
+        const { settings } = useContext(AppContext);
+        const enabled = !!(settings && settings.effectsEnabled);
+        const [displayed, setDisplayed] = useState(state || "idle");
+        const celebrateLockUntilRef = useRef(0);
+
+        useEffect(() => {
+          const now = Date.now();
+          // celebrate 中で新 state が celebrate 以外なら、ロック終了まで適用を遅延
+          if (state !== "celebrate" && celebrateLockUntilRef.current > now) {
+            const remaining = celebrateLockUntilRef.current - now;
+            const t = window.setTimeout(() => setDisplayed(state || "idle"), remaining);
+            return () => window.clearTimeout(t);
+          }
+          if (state === "celebrate") {
+            // C08-06: 呼び出し側の duration を優先、未指定は 1500ms 既定
+            const lockMs = typeof celebrateDurationMs === "number" && celebrateDurationMs > 0
+              ? celebrateDurationMs
+              : MASCOT_CELEBRATE_MS_DEFAULT;
+            celebrateLockUntilRef.current = now + lockMs;
+          }
+          setDisplayed(state || "idle");
+        }, [state, celebrateDurationMs]);
+
+        if (!enabled) return null;
+
+        // size → 絵文字サイズ。Tailwind 静的クラスを三項で選択 (動的クラス構築禁止ルール遵守)
+        const sizeClass = size === "lg"
+          ? "text-8xl"
+          : size === "md"
+            ? "text-6xl"
+            : "text-4xl";
+
+        // 状態ごとの animation 指定。JS オブジェクトなので Tailwind 抽出対象外 (問題なし)
+        let animStyle;
+        if (displayed === "idle") {
+          animStyle = { animation: "kuku-mascot-breath 4s ease-in-out infinite" };
+        } else if (displayed === "thinking") {
+          animStyle = { animation: "kuku-mascot-tilt 2s ease-in-out infinite" };
+        } else if (displayed === "happy") {
+          animStyle = { animation: "kuku-mascot-bounce 0.6s ease-out 1" };
+        } else if (displayed === "sad") {
+          animStyle = { animation: "kuku-mascot-shake 0.5s ease-in-out 1" };
+        } else if (displayed === "celebrate") {
+          animStyle = { animation: "kuku-mascot-jump 1.2s ease-out 1" };
+        } else {
+          animStyle = {};
+        }
+
+        // 目 (表情) は emoji 固定のため別要素で簡易表現: sad 時だけグレースケール気味にして「しょんぼり」
+        const tone = displayed === "sad" ? " opacity-70 grayscale" : "";
+
+        return (
+          <div
+            className={"inline-block select-none leading-none " + sizeClass + tone}
+            style={animStyle}
+            role="img"
+            aria-label={
+              displayed === "happy" ? "うれしい くくちゃん"
+              : displayed === "sad" ? "しょんぼり くくちゃん"
+              : displayed === "celebrate" ? "おおよろこびの くくちゃん"
+              : displayed === "thinking" ? "かんがえてる くくちゃん"
+              : "くくちゃん"
+            }
+          >
+            {MASCOT_EMOJI}
+          </div>
+        );
+      }
+
+      /**
+       * 右上に固定表示するコンボカウンタ。combo<1 または effectsEnabled=false は null。
+       * key={combo} で値変化のたびに再マウントして kuku-combo-pop アニメを再生する。
+       */
+      function ComboCounter({ combo }) {
+        const { settings } = useContext(AppContext);
+        if (!settings || !settings.effectsEnabled) return null;
+        if (!combo || combo < 1) return null;
+        return (
+          <div
+            key={combo}
+            aria-live="polite"
+            aria-label={"れんぞく せいかい " + combo + "かい"}
+            className="fixed top-3 right-3 z-30 flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-100/90 border-2 border-amber-300 shadow-md pointer-events-none"
+            style={{ animation: "kuku-combo-pop 0.4s ease-out 1" }}
+          >
+            <span className="text-amber-700 text-sm font-bold">コンボ</span>
+            <span className="text-amber-800 text-2xl font-bold tabular-nums">× {combo}</span>
+          </div>
+        );
+      }
+
+      /**
+       * 画面上部中央に一時的に表示するトースト。message が truthy で burstKey が変わるたびに再アニメ。
+       * 親が setTimeout で 1.5s 後に null クリアする運用。
+       */
+      function CelebrationToast({ burstKey, message, tone }) {
+        const { settings } = useContext(AppContext);
+        if (!settings || !settings.effectsEnabled) return null;
+        if (!message) return null;
+        // tone: "celebrate" (amber) / "encourage" (sky)
+        const colorClass = tone === "encourage"
+          ? "bg-sky-100 text-sky-800 border-sky-300"
+          : "bg-amber-100 text-amber-800 border-amber-300";
+        return (
+          <div
+            key={burstKey}
+            role="status"
+            aria-live="polite"
+            className={"fixed top-20 left-1/2 z-40 px-6 py-3 rounded-2xl shadow-lg pointer-events-none text-xl font-bold border-2 " + colorClass}
+            style={{ animation: "kuku-toast-pop 1.5s ease-out 1 forwards", transform: "translate(-50%, 0)" }}
+          >
+            {message}
+          </div>
+        );
+      }
+
+      // ── hooks ─────────────────────────────────────────────────────
+      /**
+       * window.location.hash を購読するカスタムフック。
+       * 空ハッシュは SPEC §2.1 に従って正規化する (C01-01 / C05-04):
+       *   - `kuku_current_account_id` が存在すれば #/home に自動復帰
+       *   - 無ければ #/login
+       * いずれも replace で履歴を積まず差し替える。
+       */
+      function useHash() {
+        const [hash, setHash] = useState(() => {
+          if (!window.location.hash) {
+            const currentId = Storage.loadCurrentAccountId();
+            const target = currentId ? "#/home" : "#/login";
+            window.location.replace(target);
+            return target;
+          }
+          return window.location.hash;
+        });
+        useEffect(() => {
+          const onChange = () => setHash(window.location.hash || "#/login");
+          window.addEventListener("hashchange", onChange);
+          return () => window.removeEventListener("hashchange", onChange);
+        }, []);
+        return hash;
+      }
+
+      // ── context ───────────────────────────────────────────────────
+      // App の状態 (accounts / currentAccountId / settings / selectedDans / totalQuestions)
+      // と操作関数を子孫コンポーネントに配布する。画面間の共有はすべてここを経由する。
+      // 画面遷移時の state loss を避けるため、quiz 設定 (selectedDans / totalQuestions) は
+      // localStorage ではなく Context に保持し、アプリのメモリ上のみで引き継ぐ (SPEC.md §4.1)。
+
+      /**
+       * @typedef {Object} AppContextValue
+       * @property {Account[]} accounts
+       * @property {Account|null} account
+       * @property {Settings} settings
+       * @property {number[]} selectedDans
+       * @property {number} totalQuestions
+       * @property {(dans: number[]) => void} setSelectedDans
+       * @property {(n: number) => void} setTotalQuestions
+       * @property {(next: Settings) => void} updateSettings
+       * @property {(name: string, avatarIndex: number) => Account} createAccount
+       * @property {(accountId: string) => void} login
+       * @property {() => void} logout
+       * @property {() => void} removeAccount
+       */
+      const AppContext = React.createContext(null);
+
+      // モーダルスタック: Escape は常に最上位モーダルのみに配送する (C05-02)。
+      // window level の keydown を複数モーダルが listen すると、1 回の Escape で全モーダルが
+      // onClose を呼んでしまうため、マウント順に push / pop し、スタック末尾だけが処理する。
+      const ModalStack = [];
+
+      /**
+       * モーダル open 中のフォーカストラップ + Escape クローズ + 元フォーカス復帰 (C04-06 / C05-02 / C05-03 / C05-09 / C05-10)。
+       *
+       * - Tab / Shift+Tab はモーダル内で循環。`a[href]` も focusable として収集 (C05-09)。
+       *   `disabled` / `aria-disabled="true"` は Tab 循環から除外 (C05-10)。
+       * - Escape は最上位モーダルのみに配送 (C05-02)。
+       * - `previousFocusRef` はモーダルを開くトリガ側で `document.activeElement` を事前保存
+       *   して渡すこと。子要素の `autoFocus` は commit 中に同期で .focus() を呼ぶため、
+       *   フック側で後から activeElement を取ると復帰先が壊れる (C05-03)。
+       *
+       * @param {React.RefObject} modalRef - モーダルルート DOM の ref
+       * @param {() => void} onClose - Escape / 外部操作で呼ばれる close ハンドラ
+       * @param {React.RefObject<Element|null>|null|undefined} [previousFocusRef] - トリガ側が保存した復帰先 ref
+       */
+      function useModalFocusTrap(modalRef, onClose, previousFocusRef) {
+        // onClose の再生成で listener を add/remove するのを避けつつ、最新 onClose を参照するため ref 経由に集約
+        const onCloseRef = useRef(onClose);
+        useEffect(() => { onCloseRef.current = onClose; });
+
+        useEffect(() => {
+          const entry = {}; // 参照同一性でスタック位置を識別
+          ModalStack.push(entry);
+          const captured = previousFocusRef && previousFocusRef.current ? previousFocusRef.current : null;
+
+          const onKey = (e) => {
+            if (e.key === "Escape") {
+              // 最上位モーダルのみが Escape を受け取る (C05-02)
+              if (ModalStack[ModalStack.length - 1] !== entry) return;
+              e.preventDefault();
+              onCloseRef.current();
+              return;
+            }
+            if (e.key !== "Tab" || !modalRef.current) return;
+            // a[href] を含む汎用 focusable セレクタ (C05-09)
+            const focusables = modalRef.current.querySelectorAll(
+              'a[href], input, button, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            // disabled / aria-disabled="true" を除外 (C05-10)
+            const list = Array.from(focusables).filter(
+              (el) => !el.disabled && el.getAttribute("aria-disabled") !== "true"
+            );
+            if (list.length === 0) return;
+            const first = list[0];
+            const last = list[list.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          };
+          window.addEventListener("keydown", onKey);
+
+          return () => {
+            window.removeEventListener("keydown", onKey);
+            const idx = ModalStack.indexOf(entry);
+            if (idx !== -1) ModalStack.splice(idx, 1);
+            if (captured && typeof captured.focus === "function") {
+              captured.focus();
+            }
+          };
+        }, []); // mount/unmount 1 回のみ。onClose は ref 経由で最新値を参照する
+      }
+
+      // ── screens (placeholders) ────────────────────────────────────
+      // Step 3 以降で本実装に差し替える。Step 0 は骨格プレースホルダのみ。
+      function Placeholder({ title, stepHint }) {
+        return (
+          <main className="min-h-screen flex flex-col items-center justify-center p-8">
+            <div className="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100">
+              <h1 className="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide text-center">
+                くくどうじょう
+              </h1>
+              <p className="mt-6 text-2xl text-slate-700 text-center">{title}</p>
+              <p className="mt-2 text-sm text-slate-500 text-center">{stepHint}</p>
+              <nav className="mt-8 flex flex-wrap gap-2 justify-center text-sm">
+                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/login">#/login</a>
+                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/home">#/home</a>
+                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/quiz">#/quiz</a>
+                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/result">#/result</a>
+                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/stats">#/stats</a>
+              </nav>
+            </div>
+          </main>
+        );
+      }
+
+      // ── screens: LoginScreen ──────────────────────────────────────
+      // 参照: SPEC.md §3.1.1〜§3.1.2 / §4.1 / §5.2 / docs/九九練習アプリ_要件定義書.md §3.1
+
+      // アバター選択肢 (6〜8 個) — SPEC.md §5.3 マスコット方針に倣い絵文字ベース
+      // マスコット「くくちゃん」（Step 7 実装）との意匠整理は SPEC.md §5.3 を参照 (C04-18)
+      const LOGIN_AVATARS = ["🐱", "🐶", "🐰", "🐼", "🦊", "🐸", "🐯", "🐻"];
+
+      // LoginScreen 層のヘルパーは LoginHelpers に集約して裸のグローバル関数を避ける (C04-17)。
+      // C03-09 で確立した namespace 規律を screens 層にも適用。
+      const LoginHelpers = {
+        /**
+         * 不正な avatarIndex でも落ちないように安全側へ寄せる。
+         * @param {number} idx
+         * @returns {string} アバター絵文字
+         */
+        avatarOf(idx) {
+          const i = Number.isInteger(idx) && idx >= 0 && idx < LOGIN_AVATARS.length ? idx : 0;
+          return LOGIN_AVATARS[i];
+        },
+
+        /**
+         * 直近のプレイ日時を子供向けにやさしく表示する。
+         * 未来タイムスタンプ (端末時計ズレ) は「きょう」に畳み、NaN は「まだ あそんでないよ」扱い (C04-13)。
+         * @param {number|null|undefined} timestamp - UNIX ms
+         * @returns {string}
+         */
+        formatLastPlayed(timestamp) {
+          if (timestamp === null || timestamp === undefined || !Number.isFinite(timestamp)) {
+            return "まだ あそんでないよ";
+          }
+          const d = new Date(timestamp);
+          if (Number.isNaN(d.getTime())) return "まだ あそんでないよ";
+          const now = new Date();
+          const dayMs = 24 * 60 * 60 * 1000;
+          const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+          const diff = Math.floor((startOf(now) - startOf(d)) / dayMs);
+          // diff < 0 (未来) は端末時計ずれの補正として「きょう」にクランプ (C04-13)
+          if (diff <= 0) return "きょう あそんだよ";
+          if (diff === 1) return "きのう あそんだよ";
+          if (diff < 7) return diff + "にちまえ";
+          return (d.getMonth() + 1) + "がつ" + d.getDate() + "にち";
+        },
+      };
+
+      /**
+       * 単一アカウントの選択カード。アバター・名前・最終プレイ日時を横並びで表示する。
+       * @param {Object} props
+       * @param {Account} props.account
+       * @param {() => void} props.onSelect - クリック時に handleSelect(account.id) を呼ぶ
+       * @param {boolean} [props.autoFocus] - マウント時にフォーカスを当てるか (C05-11 LoginScreen 初期焦点用)
+       */
+      function AccountCard({ account, onSelect, autoFocus }) {
+        // セッション履歴の最大 timestamp を最終プレイ日時として扱う。
+        // Account 自体には lastPlayedAt が無いので sessions から導出する。
+        // SPEC.md §2.2 将来拡張 (C04-19) で Account.lastPlayedAt を追加する候補。
+        const lastPlayed = useMemo(() => {
+          const sessions = Storage.loadSessions(account.id);
+          if (!sessions.length) return null;
+          let max = 0;
+          for (let i = 0; i < sessions.length; i++) {
+            if (sessions[i].timestamp > max) max = sessions[i].timestamp;
+          }
+          return max;
+        }, [account.id]);
+
+        return (
+          <li>
+            <button
+              type="button"
+              onClick={onSelect}
+              autoFocus={autoFocus}
+              className="w-full min-h-[96px] bg-white rounded-2xl shadow-md hover:shadow-lg hover:bg-indigo-50 border border-indigo-100 p-4 flex items-center gap-4 focus:outline-none focus:ring-4 focus:ring-indigo-300 text-left transition-shadow"
+              aria-label={account.name + " で はじめる"}
+            >
+              <span className="text-5xl leading-none" aria-hidden="true">
+                {LoginHelpers.avatarOf(account.avatarIndex)}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-2xl font-bold text-slate-800 truncate">{account.name}</span>
+                <span className="block text-sm text-slate-500 mt-1">{LoginHelpers.formatLastPlayed(lastPlayed)}</span>
+              </span>
+              <span className="text-indigo-400 text-2xl" aria-hidden="true">▶</span>
+            </button>
+          </li>
+        );
+      }
+
+      /**
+       * 名前入力に紛れる制御文字・ゼロ幅空白を除去してから trim する (C04-09)。
+       * String.prototype.trim() は U+3000 など WhiteSpace カテゴリは除去するが
+       * U+200B (ZWSP) / U+200E (LRM) / U+FEFF (BOM) 等は残るため独自に除去。
+       * @param {string} s
+       * @returns {string}
+       */
+      function sanitizeAccountName(s) {
+        return String(s).replace(/[\u200B-\u200F\u202A-\u202E\u2028\u2029\uFEFF]/g, "").trim();
+      }
+
+      /**
+       * 新規アカウント作成モーダル。名前 (10 コードポイント以内) とアバターを入力させる。
+       * @param {Object} props
+       * @param {() => void} props.onCancel
+       * @param {(name: string, avatarIndex: number) => void} props.onCreate
+       * @param {string[]} props.existingNames - 既存アカウント名 (重複検知用 / C04-03)
+       * @param {React.RefObject<Element|null>} props.previousFocusRef - トリガ要素の焦点復帰先 (C05-03)
+       */
+      function CreateAccountModal({ onCancel, onCreate, existingNames, previousFocusRef }) {
+        const [name, setName] = useState("");
+        const [avatarIndex, setAvatarIndex] = useState(0);
+        const [isComposing, setIsComposing] = useState(false);
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const modalRef = useRef(null);
+
+        // フォーカストラップ + 元フォーカス復帰 + Escape 閉じ (C04-06 / C05-02 / C05-03)
+        // 共有フック useModalFocusTrap に集約 (HomeScreen の各モーダルと重複回避)
+        useModalFocusTrap(modalRef, onCancel, previousFocusRef);
+
+        const trimmed = sanitizeAccountName(name);
+        // 絵文字・サロゲートペアの誤カウント回避のためコードポイント数で評価。
+        // maxLength={10} 属性は UTF-16 単位なので、ここで再度コードポイント計算 (C04-08 と合わせ二重防御)。
+        const charCount = Array.from(trimmed).length;
+        const tooLong = charCount > 10;
+        const isEmpty = charCount === 0;
+        const isDuplicate = !isEmpty && existingNames.indexOf(trimmed) !== -1;
+        // IME 変換中は canSubmit を停止し、未確定文字列のまま Enter 確定するのを防ぐ (C04-08)。
+        // Enter 連打による重複 submit は isSubmitting ガードで抑止 (C04-15)。
+        const canSubmit = !isEmpty && !tooLong && !isDuplicate && !isComposing && !isSubmitting;
+
+        const handleSubmit = (e) => {
+          e.preventDefault();
+          if (!canSubmit) return;
+          setIsSubmitting(true);
+          onCreate(trimmed, avatarIndex);
+        };
+
+        // エラー表示の優先度: tooLong > isDuplicate > isEmpty
+        let hintText = "\u00A0"; // 固定高さ維持用の非改行スペース
+        let hintClass = "text-slate-500";
+        if (tooLong) {
+          hintText = "ちょっと ながすぎるよ";
+          hintClass = "text-rose-600";
+        } else if (isDuplicate) {
+          hintText = "おなじ なまえの ひとが いるよ";
+          hintClass = "text-rose-600";
+        } else if (isEmpty) {
+          hintText = "なまえを かいてね";
+        }
+
+        return (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kuku-create-title"
+          >
+            <form
+              onSubmit={handleSubmit}
+              className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6"
+            >
+              <h2 id="kuku-create-title" className="text-2xl font-bold text-indigo-700 text-center">
+                あたらしく つくろう
+              </h2>
+
+              <div className="mt-6">
+                <label className="block text-base font-bold text-slate-700 mb-2" htmlFor="kuku-name-input">
+                  なまえ（10もじまで）
+                </label>
+                <input
+                  id="kuku-name-input"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={(e) => {
+                    setIsComposing(false);
+                    // Chrome/Firefox は compositionend 後に onChange が走るが、
+                    // Safari では走らない場合があるため確定値をここで同期反映 (C04-08)。
+                    setName(e.target.value);
+                  }}
+                  maxLength={10}
+                  placeholder="ひらがなで かいてね"
+                  className="w-full min-h-[48px] px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                  autoFocus
+                  autoComplete="off"
+                  inputMode="text"
+                />
+                <div className="mt-1 flex justify-between items-baseline">
+                  {/* エラー系 (tooLong / isDuplicate) は text-base + role="alert" で読み上げ優先。
+                      非エラー (空・プレースホルダ) は text-sm のままサイズを抑える (Step 9 UX バランス)。
+                      C10-04: 要素は常駐し role 属性のみ切替わるため、NVDA/VoiceOver の一部バージョンで
+                      alert イベントが再発火しない。aria-live="assertive" を併用して属性切替時にも
+                      読み上げが起きるよう担保する。 */}
+                  <span className={(tooLong || isDuplicate ? "text-base font-bold " : "text-sm ") + hintClass}
+                        role={tooLong || isDuplicate ? "alert" : undefined}
+                        aria-live="assertive">
+                    {hintText}
+                  </span>
+                  <span className="text-sm text-slate-500 tabular-nums">{charCount}/10</span>
+                </div>
+              </div>
+
+              <fieldset className="mt-4" role="radiogroup" aria-labelledby="kuku-avatar-legend">
+                <legend id="kuku-avatar-legend" className="block text-base font-bold text-slate-700 mb-2">
+                  えを えらんでね
+                </legend>
+                <div className="grid grid-cols-4 gap-2">
+                  {LOGIN_AVATARS.map((emoji, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => setAvatarIndex(i)}
+                      role="radio"
+                      aria-checked={avatarIndex === i}
+                      aria-label={"え " + (i + 1)}
+                      className={
+                        avatarIndex === i
+                          ? "min-h-[56px] min-w-[48px] text-4xl rounded-xl border-4 border-indigo-500 bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                          : "min-h-[56px] min-w-[48px] text-4xl rounded-xl border-2 border-slate-200 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                      }
+                    >
+                      <span aria-hidden="true">{emoji}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                >
+                  やめる
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className={
+                    canSubmit
+                      ? "flex-1 min-h-[48px] px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                      : "flex-1 min-h-[48px] px-4 py-3 bg-indigo-200 text-white font-bold rounded-xl cursor-not-allowed"
+                  }
+                >
+                  けってい
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      }
+
+      /**
+       * ログイン画面。既存アカウント一覧・新規作成モーダル・選択導線を担当する。
+       * SPEC.md §2.1 / §4.1 / §5.2 / docs/九九練習アプリ_要件定義書.md §3.1 に準拠。
+       * accounts / createAccount / login は AppContext 経由で受け取る (Step 4 で context 化)。
+       */
+      function LoginScreen() {
+        const { accounts, createAccount, login } = useContext(AppContext);
+        const [showModal, setShowModal] = useState(false);
+        // CreateAccountModal に渡す既存名一覧 (C04-03)。accounts の変化に追従する。
+        const existingNames = useMemo(() => accounts.map(function (a) { return a.name; }), [accounts]);
+        // 新規作成モーダルのトリガ要素フォーカスを事前保存して、閉じたあとに復帰させる (C05-03)
+        const createModalPrevFocusRef = useRef(null);
+
+        const handleSelect = (accountId) => {
+          // AudioContext の初回 resume は App level の first-gesture フックが担当 (C04-01 / C04-12)。
+          // login() 内部で saveCurrentAccountId + setCurrentAccountId。
+          // 失敗時のバナー警告は Storage._onStorageError 経由で既に表示されているため遷移は継続 (C04-05)。
+          login(accountId);
+          // SPEC §4.1「ログイン直後の自動遷移」は replace で。戻るボタンでログイン画面に戻らないようにする (C05-08)。
+          window.location.replace("#/home");
+        };
+
+        const handleCreate = (name, avatarIndex) => {
+          // createAccount は accounts / weights / settings をまとめて永続化 (C04-04)。
+          // 個別の save 失敗は _onStorageError 経由でバナー通知されるので、UI 上の遷移は継続する (C04-07)。
+          const newAccount = createAccount(name, avatarIndex);
+          setShowModal(false);
+          // 作成直後に自動で選択状態にして #/home へ
+          handleSelect(newAccount.id);
+        };
+
+        return (
+          <main className="min-h-screen flex flex-col items-center justify-start px-6 py-10">
+            <header className="text-center mb-8">
+              <div className="text-7xl md:text-8xl leading-none" aria-hidden="true">🐱</div>
+              <h1 className="mt-4 text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">
+                くくどうじょう
+              </h1>
+              <p className="mt-3 text-lg text-slate-600">あそぶ こを えらんでね</p>
+            </header>
+
+            <section className="w-full max-w-3xl">
+              {accounts.length === 0 ? (
+                <div className="bg-white/70 backdrop-blur rounded-2xl border border-indigo-100 p-6 text-center text-slate-600 text-lg">
+                  まだ だれも いないよ。<br />
+                  したの ボタンから はじめよう！
+                </div>
+              ) : (
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {accounts.map((a, i) => (
+                    <AccountCard
+                      key={a.id}
+                      account={a}
+                      onSelect={() => handleSelect(a.id)}
+                      autoFocus={i === 0}
+                    />
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // モーダルを閉じたときの復帰先をトリガ要素で先に捕捉 (C05-03)
+                    createModalPrevFocusRef.current = document.activeElement;
+                    setShowModal(true);
+                  }}
+                  autoFocus={accounts.length === 0}
+                  className="min-h-[56px] px-10 py-4 bg-indigo-600 text-white text-xl font-bold rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                >
+                  ＋ あたらしくつくる
+                </button>
+              </div>
+            </section>
+
+            {showModal && (
+              <CreateAccountModal
+                onCancel={() => setShowModal(false)}
+                onCreate={handleCreate}
+                existingNames={existingNames}
+                previousFocusRef={createModalPrevFocusRef}
+              />
+            )}
+          </main>
+        );
+      }
+
+      // ── screens: HomeScreen ───────────────────────────────────────
+      // 参照: SPEC.md §2.3 / §4.1 / prompts.md Step 4
+
+      // 段選択・問題数スライダーで使う定数。値域外が Context に入らないように UI 側でも clamp する (C03-01 二重防御)。
+      const DAN_LIST = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      const QUESTION_COUNT_MIN = 10;
+      const QUESTION_COUNT_MAX = 81;
+
+      /**
+       * 音量・エフェクト・サウンドの設定モーダル。アカウント削除のエントリもここに持つ。
+       * 変更は即 Context + localStorage に反映する (updateSettings)。
+       * @param {Object} props
+       * @param {Settings} props.settings
+       * @param {(updater: Settings | ((prev: Settings) => Settings)) => void} props.onUpdate - オブジェクト or 関数型 setter 両対応 (C05-06)
+       * @param {() => void} props.onClose
+       * @param {() => void} props.onRequestDelete
+       * @param {React.RefObject<Element|null>} props.previousFocusRef - トリガ要素の焦点復帰先 (C05-03)
+       */
+      function SettingsModal({ settings, onUpdate, onClose, onRequestDelete, previousFocusRef }) {
+        const modalRef = useRef(null);
+        useModalFocusTrap(modalRef, onClose, previousFocusRef);
+
+        // 関数型 setter を使って stale closure の差し込みを防ぐ (C05-06)
+        const toggle = (key) => {
+          onUpdate((prev) => ({ ...prev, [key]: !prev[key] }));
+        };
+        // ドラッグ中は React ローカル state で即時プレビュー、
+        // 指を離した瞬間 (pointerup / keyup / blur) に 1 回だけ localStorage に永続化する (C05-05)。
+        // 60fps ドラッグで `saveSettings` が毎フレーム走るのを避ける。
+        const [draftVolume, setDraftVolume] = useState(settings.volume);
+        useEffect(() => { setDraftVolume(settings.volume); }, [settings.volume]);
+        const commitVolume = () => {
+          onUpdate((prev) => ({ ...prev, volume: draftVolume }));
+        };
+
+        return (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kuku-settings-title"
+          >
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
+              <h2 id="kuku-settings-title" className="text-2xl font-bold text-indigo-700 text-center">
+                せってい
+              </h2>
+
+              <div className="mt-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xl font-bold text-slate-700">おと</span>
+                  <div className="flex items-center gap-3">
+                    {/* 色覚多様性配慮: 色と位置だけでなく文字でも ON/OFF を示す (C05-17)。
+                        aria-checked でスクリーンリーダ読み上げは十分なので aria-hidden="true" */}
+                    <span className="text-sm font-bold w-8 text-right text-slate-600" aria-hidden="true">
+                      {settings.soundEnabled ? "オン" : "オフ"}
+                    </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.soundEnabled}
+                    aria-label="おと"
+                    onClick={() => toggle("soundEnabled")}
+                    className={
+                      settings.soundEnabled
+                        ? "w-20 h-12 rounded-full bg-indigo-600 relative transition-colors focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                        : "w-20 h-12 rounded-full bg-slate-300 relative transition-colors focus:outline-none focus:ring-4 focus:ring-slate-300"
+                    }
+                  >
+                    <span
+                      className={
+                        settings.soundEnabled
+                          ? "absolute top-1 right-1 w-10 h-10 bg-white rounded-full shadow transition-all"
+                          : "absolute top-1 left-1 w-10 h-10 bg-white rounded-full shadow transition-all"
+                      }
+                      aria-hidden="true"
+                    />
+                  </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-xl font-bold text-slate-700">エフェクト</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold w-8 text-right text-slate-600" aria-hidden="true">
+                      {settings.effectsEnabled ? "オン" : "オフ"}
+                    </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={settings.effectsEnabled}
+                    aria-label="エフェクト"
+                    onClick={() => toggle("effectsEnabled")}
+                    className={
+                      settings.effectsEnabled
+                        ? "w-20 h-12 rounded-full bg-indigo-600 relative transition-colors focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                        : "w-20 h-12 rounded-full bg-slate-300 relative transition-colors focus:outline-none focus:ring-4 focus:ring-slate-300"
+                    }
+                  >
+                    <span
+                      className={
+                        settings.effectsEnabled
+                          ? "absolute top-1 right-1 w-10 h-10 bg-white rounded-full shadow transition-all"
+                          : "absolute top-1 left-1 w-10 h-10 bg-white rounded-full shadow transition-all"
+                      }
+                      aria-hidden="true"
+                    />
+                  </button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="kuku-volume-input" className="text-xl font-bold text-slate-700">
+                      おんりょう
+                    </label>
+                    <span className="text-slate-500 text-sm">{Math.round(draftVolume * 100)}%</span>
+                  </div>
+                  <input
+                    id="kuku-volume-input"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={draftVolume}
+                    onChange={(e) => setDraftVolume(Number(e.target.value))}
+                    onPointerUp={commitVolume}
+                    onKeyUp={commitVolume}
+                    onBlur={commitVolume}
+                    className="w-full mt-2 h-3 accent-indigo-600 disabled:opacity-40"
+                    disabled={!settings.soundEnabled}
+                  />
+                </div>
+
+                {/* にがて もんだいの でやすさ (SPEC §3.2 wrongWeightBoost 3 段プリセット)。
+                    role="radiogroup" で選択肢の排他性をスクリーンリーダに伝える。 */}
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span id="kuku-boost-label" className="text-xl font-bold text-slate-700">
+                      にがて もんだい
+                    </span>
+                    <span className="text-slate-500 text-sm">でやすさ</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                    まちがえた もんだいの でやすさを かえるよ
+                  </p>
+                  {/* C11-05: WAI-ARIA radiogroup pattern に沿い Arrow キー切替 + roving tabindex。
+                      - Tab で「選択中ボタン」のみにフォーカスが入る (非選択は tabindex=-1 でスキップ)
+                      - ArrowLeft/Up = 前、ArrowRight/Down = 次、Home/End で端へ
+                      - Arrow キーで切替時は即座に選択変更 + フォーカス移動 (APG 既定) */}
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="kuku-boost-label"
+                    className="mt-2 grid grid-cols-3 gap-2"
+                    onKeyDown={(e) => {
+                      const values = WRONG_WEIGHT_BOOST_PRESETS.map((p) => p.value);
+                      const cur = values.indexOf(settings.wrongWeightBoost);
+                      const idx = cur === -1 ? 1 : cur; // プリセット外 (C11-06 予防) なら「ふつう」起点
+                      let nextIdx = null;
+                      if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
+                      else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
+                      else if (e.key === "Home") nextIdx = 0;
+                      else if (e.key === "End") nextIdx = values.length - 1;
+                      if (nextIdx === null) return;
+                      e.preventDefault();
+                      const nextValue = values[nextIdx];
+                      onUpdate((prev) => ({ ...prev, wrongWeightBoost: nextValue }));
+                      // フォーカスを次の radio に移す (roving tabindex)
+                      const group = e.currentTarget;
+                      const buttons = group.querySelectorAll('[role="radio"]');
+                      if (buttons[nextIdx]) buttons[nextIdx].focus();
+                    }}
+                  >
+                    {WRONG_WEIGHT_BOOST_PRESETS.map((preset) => {
+                      const selected = settings.wrongWeightBoost === preset.value;
+                      return (
+                        <button
+                          key={preset.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          aria-label={preset.label + ": " + preset.desc}
+                          tabIndex={selected ? 0 : -1}
+                          onClick={() => onUpdate((prev) => ({ ...prev, wrongWeightBoost: preset.value }))}
+                          className={
+                            selected
+                              ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                              : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                          }
+                        >
+                          {preset.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full mt-6 min-h-[48px] px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+              >
+                とじる
+              </button>
+
+              <div className="mt-6 pt-5 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={onRequestDelete}
+                  className="w-full min-h-[48px] px-4 py-3 bg-white text-rose-700 font-bold rounded-xl border-2 border-rose-300 hover:bg-rose-50 focus:outline-none focus:ring-4 focus:ring-rose-300"
+                >
+                  アカウントを さくじょ
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /**
+       * アカウント削除の確認ダイアログ。role="alertdialog" でスクリーンリーダに重大性を伝える。
+       * Escape / 「やめる」でキャンセル、「けす」で onConfirm を呼ぶ。
+       * @param {Object} props
+       * @param {string} props.accountName
+       * @param {number} props.avatarIndex - 削除対象の識別性を上げるため絵文字を併記 (C05-15)
+       * @param {() => void} props.onCancel
+       * @param {() => void} props.onConfirm
+       * @param {React.RefObject<Element|null>} props.previousFocusRef - トリガ要素の焦点復帰先 (C05-03)
+       */
+      function DeleteConfirmModal({ accountName, avatarIndex, onCancel, onConfirm, previousFocusRef }) {
+        const modalRef = useRef(null);
+        useModalFocusTrap(modalRef, onCancel, previousFocusRef);
+
+        return (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="kuku-delete-title"
+            aria-describedby="kuku-delete-desc"
+          >
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
+              <h2 id="kuku-delete-title" className="text-2xl font-bold text-rose-700 text-center">
+                ほんとうに けす？
+              </h2>
+              <div className="mt-4 flex flex-col items-center">
+                {/* 削除対象のアバターを併記して識別性を上げる (C05-15) */}
+                <span className="text-6xl leading-none" aria-hidden="true">
+                  {LoginHelpers.avatarOf(avatarIndex)}
+                </span>
+                <p id="kuku-delete-desc" className="mt-3 text-center text-slate-700 text-lg leading-relaxed">
+                  「{accountName}」の せいせきも<br />
+                  ぜんぶ きえちゃうよ
+                </p>
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  autoFocus
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                >
+                  やめる
+                </button>
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-300"
+                >
+                  けす
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /**
+       * ホーム画面。段選択・問題数調整・はじめる / せいせき / ログアウト / 設定・削除の導線を持つ。
+       * 段選択と問題数は AppContext に保存し、QuizScreen (Step 5) が読み取る (prompts.md Step 4)。
+       * アバターは account.avatarIndex を表示する。くくちゃんマスコットは Step 7 で MascotCharacter に差し替え (C04-18)。
+       */
+      function HomeScreen() {
+        const {
+          account,
+          selectedDans,
+          setSelectedDans,
+          totalQuestions,
+          setTotalQuestions,
+          settings,
+          updateSettings,
+          logout,
+          removeAccount,
+        } = useContext(AppContext);
+        const [showSettings, setShowSettings] = useState(false);
+        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+        // モーダル閉じた後の焦点復帰先をトリガ側で捕捉する (C05-03)
+        const settingsPrevFocusRef = useRef(null);
+        const deletePrevFocusRef = useRef(null);
+
+        // App の Navigation Guard が発火するまでの過渡フレームでは account が null になりうる (C04-05)。
+        // null ガードで防御して HomeScreen 自体は落ちないようにする。
+        if (!account) return null;
+
+        const toggleDan = (dan) => {
+          if (selectedDans.indexOf(dan) !== -1) {
+            setSelectedDans(selectedDans.filter((d) => d !== dan));
+          } else {
+            setSelectedDans(selectedDans.concat(dan).sort((a, b) => a - b));
+          }
+        };
+        const selectAllDans = () => setSelectedDans(DAN_LIST.slice());
+        // 段選択が 0 のときは「はじめる」を無効化。エンジン側の fallback とは別に UI でも弾く (SPEC §3.1 二重防御)。
+        const canStart = selectedDans.length > 0;
+
+        const handleStart = () => {
+          if (canStart) window.location.hash = "#/quiz";
+        };
+        const handleStats = () => {
+          window.location.hash = "#/stats";
+        };
+        const handleLogout = () => {
+          logout();
+          // SPEC §4.1: 戻るボタンで前画面に戻るべきでない遷移は replace を使う。
+          // ハッシュ直接代入 (= pushState 相当) だと Navigation Guard も追随で replace を呼び重複する (C05-08)。
+          window.location.replace("#/login");
+        };
+        const handleDeleteConfirmed = () => {
+          removeAccount();
+          setShowDeleteConfirm(false);
+          setShowSettings(false);
+          // 削除後の #/login 遷移は履歴エントリを積まず差し替え (C05-08)
+          window.location.replace("#/login");
+        };
+
+        return (
+          <main className="min-h-screen px-4 py-6 flex flex-col items-center">
+            <header className="w-full max-w-3xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-5xl leading-none" aria-hidden="true">
+                  {LoginHelpers.avatarOf(account.avatarIndex)}
+                </span>
+                <h1 className="text-2xl md:text-3xl font-bold text-indigo-700 truncate">
+                  {account.name}さん、こんにちは！
+                </h1>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                >
+                  ログアウト
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 閉じた後に歯車ボタンへ焦点を戻すため現焦点を保存 (C05-03)
+                    settingsPrevFocusRef.current = document.activeElement;
+                    setShowSettings(true);
+                  }}
+                  aria-label="せってい"
+                  className="min-h-[48px] min-w-[48px] px-3 py-2 bg-slate-100 text-slate-700 text-2xl rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                >
+                  <span aria-hidden="true">⚙</span>
+                </button>
+              </div>
+            </header>
+
+            <section
+              className="mt-6 w-full max-w-3xl bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+              aria-labelledby="kuku-dan-legend"
+            >
+              <h2 id="kuku-dan-legend" className="text-xl font-bold text-slate-700">
+                どのだんを れんしゅうする？
+              </h2>
+              <div className="mt-4 grid grid-cols-3 sm:grid-cols-9 gap-2 sm:gap-3" role="group" aria-labelledby="kuku-dan-legend">
+                {DAN_LIST.map((dan) => {
+                  const selected = selectedDans.indexOf(dan) !== -1;
+                  return (
+                    <button
+                      key={dan}
+                      type="button"
+                      onClick={() => toggleDan(dan)}
+                      aria-pressed={selected}
+                      className={
+                        selected
+                          ? "min-h-[64px] text-xl font-bold rounded-2xl border-4 border-indigo-500 bg-indigo-500 text-white shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                          : "min-h-[64px] text-xl font-bold rounded-2xl border-2 border-slate-300 bg-white text-slate-700 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                      }
+                    >
+                      {dan}のだん
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={selectAllDans}
+                className="mt-4 w-full min-h-[48px] px-4 py-3 bg-indigo-100 text-indigo-700 text-lg font-bold rounded-xl border-2 border-indigo-200 hover:bg-indigo-200 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+              >
+                ぜんぶ
+              </button>
+              {!canStart && (
+                // C10-14: 初回 render で !canStart===true で到達した経路 (ログイン直後 / 再入直後) でも SR が読み上げるよう
+                //        role="alert" に aria-live="assertive" を併用する。条件付きレンダのため true→false→true で
+                //        DOM 出し入れが起こる運用も残し、いずれの SR 実装でも読み上げられる冗長性を確保する。
+                <p className="mt-3 text-rose-600 text-base font-bold text-center" role="alert" aria-live="assertive">だんを ひとつ いじょう えらんでね</p>
+              )}
+            </section>
+
+            <section
+              className="mt-6 w-full max-w-3xl bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+              aria-labelledby="kuku-count-legend"
+            >
+              <h2 id="kuku-count-legend" className="text-xl font-bold text-slate-700">
+                なんもん やる？
+              </h2>
+              <div className="mt-4 text-center">
+                <span className="text-7xl font-bold text-indigo-700 tabular-nums">{totalQuestions}</span>
+                <span className="text-2xl text-slate-600 ml-2">もん</span>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="text-sm text-slate-500 w-6 text-right">{QUESTION_COUNT_MIN}</span>
+                <input
+                  type="range"
+                  min={QUESTION_COUNT_MIN}
+                  max={QUESTION_COUNT_MAX}
+                  step="1"
+                  value={totalQuestions}
+                  onChange={(e) => setTotalQuestions(Number(e.target.value))}
+                  className="flex-1 h-3 accent-indigo-600"
+                  aria-label="もんだいの かず"
+                  aria-valuemin={QUESTION_COUNT_MIN}
+                  aria-valuemax={QUESTION_COUNT_MAX}
+                  aria-valuenow={totalQuestions}
+                />
+                <span className="text-sm text-slate-500 w-6">{QUESTION_COUNT_MAX}</span>
+              </div>
+            </section>
+
+            <section className="mt-8 w-full max-w-3xl flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={!canStart}
+                className={
+                  canStart
+                    ? "w-full md:w-96 min-h-[72px] px-10 py-5 bg-indigo-600 text-white text-3xl font-bold rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+                    : "w-full md:w-96 min-h-[72px] px-10 py-5 bg-slate-300 text-white text-3xl font-bold rounded-2xl cursor-not-allowed"
+                }
+              >
+                はじめる
+              </button>
+              <button
+                type="button"
+                onClick={handleStats}
+                className="w-full md:w-96 min-h-[56px] px-8 py-4 bg-white text-indigo-700 text-xl font-bold rounded-2xl border-2 border-indigo-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+              >
+                せいせき
+              </button>
+            </section>
+
+            {showSettings && (
+              <SettingsModal
+                settings={settings}
+                onUpdate={updateSettings}
+                onClose={() => setShowSettings(false)}
+                onRequestDelete={() => {
+                  // 削除確認閉じた後に「アカウントを さくじょ」ボタンへ焦点を戻す (C05-03)
+                  deletePrevFocusRef.current = document.activeElement;
+                  setShowDeleteConfirm(true);
+                }}
+                previousFocusRef={settingsPrevFocusRef}
+              />
+            )}
+
+            {showDeleteConfirm && (
+              <DeleteConfirmModal
+                accountName={account.name}
+                avatarIndex={account.avatarIndex}
+                onCancel={() => setShowDeleteConfirm(false)}
+                onConfirm={handleDeleteConfirmed}
+                previousFocusRef={deletePrevFocusRef}
+              />
+            )}
+          </main>
+        );
+      }
+
+      // ── screens: QuizScreen ──────────────────────────────────────
+      // 参照: SPEC.md §3.1 / §3.2 / §4.3 / §5.0 / prompts.md Step 5
+
+      const ANSWER_MAX_LENGTH = 2;        // 9×9=81 なので 2 桁で十分
+      const CORRECT_ADVANCE_MS = 800;     // 正解時の自動進行遅延 (prompts.md Step 5)
+      const RECENT_BUFFER_SIZE = 2;       // recent: 直前 2 問分のキー (prompts.md Step 5)
+
+      /**
+       * 連続正解数 (combo) から祝福エフェクトのパラメータを返す純粋関数。
+       *
+       * Step 10 実機確認で「連続 5 問以上は演出が同一」のフィードバックを受け、
+       * 7 / 10 / 15 / 20 連続の上位階層を追加して連続回数を反映するよう拡張。
+       * SPEC §5.1 / §5.3 の 3連続=celebrate 1200ms / 5連続=celebrate 1500ms + 星バースト
+       * の既存閾値は維持する。5 連続以上は celebrate 持続を SPEC 上限 1500ms で固定し、
+       * 粒数増加のみでエスカレートさせる (個別アニメ 1.5 秒以内の PSE 規約を守るため)。
+       *
+       * 粒数は最大 80 で、セッション完了時の 60〜100 と同レンジに収まる (ConfettiCanvas 参照)。
+       *
+       * @param {number} combo
+       * @returns {{particleCount:number, particleShape:"square"|"star", mascotDesired:"happy"|"celebrate", mascotCelebrateMs:number, toastMessage:string|null}}
+       */
+      function getComboCelebration(combo) {
+        if (combo >= 20) return { particleCount: 80, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく でんせつ！" };
+        if (combo >= 15) return { particleCount: 65, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく かんぺき！" };
+        if (combo >= 10) return { particleCount: 55, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく てんさい！" };
+        if (combo >= 7)  return { particleCount: 40, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく さいこう！" };
+        if (combo >= 5)  return { particleCount: 30, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく すごい！" };
+        if (combo >= 3)  return { particleCount: 25, particleShape: "square", mascotDesired: "celebrate", mascotCelebrateMs: 1200, toastMessage: "すごい！" };
+        return             { particleCount: 15, particleShape: "square", mascotDesired: "happy",     mascotCelebrateMs: 0,    toastMessage: null };
+      }
+
+      /**
+       * 中断確認ダイアログ (SPEC §4.3)。中断ボタン or ブラウザ戻るボタン両方から開く。
+       * やめる を選ぶと未完了セッションは破棄して #/home に遷移 (localStorage には保存しない)。
+       * @param {Object} props
+       * @param {() => void} props.onCancel
+       * @param {() => void} props.onConfirm
+       * @param {React.RefObject<Element|null>} props.previousFocusRef
+       */
+      function PauseConfirmModal({ onCancel, onConfirm, previousFocusRef }) {
+        const modalRef = useRef(null);
+        useModalFocusTrap(modalRef, onCancel, previousFocusRef);
+
+        return (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="kuku-pause-title"
+            aria-describedby="kuku-pause-desc"
+          >
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
+              <h2 id="kuku-pause-title" className="text-2xl font-bold text-indigo-700 text-center">
+                ちゅうだん しますか？
+              </h2>
+              <p id="kuku-pause-desc" className="mt-3 text-center text-slate-700 text-lg">
+                とちゅうの せいせきは のこらないよ
+              </p>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  autoFocus
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300 transition-colors"
+                >
+                  つづける
+                </button>
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-300 transition-colors"
+                >
+                  やめる
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /**
+       * 試験画面。マウント時に最初の問題を取得し、回答ごとに重みを更新しながら全問終了まで進める。
+       * 完了時のみ SessionResult を Storage.saveSessions で追記する。中断時は保存しない (SPEC §4.3)。
+       * 段選択・問題数は HomeScreen から Context 経由で受け取り、マウント時に snapshot で固定する。
+       * 派手な視覚演出は Step 7 で追加するため、ここでは色とフェードのみ。3Hz 超点滅や強フラッシュは含まない (SPEC §5.0)。
+       */
+      function QuizScreen() {
+        const { account, selectedDans, totalQuestions, settings } = useContext(AppContext);
+
+        // マウント時の出題条件をスナップショット化。途中で HomeScreen の値を変えても追随しない。
+        // pickQuestion 側も正規化しているが、UI 側でも二重防御 (SPEC §3.1 / C03-01)。
+        const [snapshot] = useState(() => {
+          const validDans = (Array.isArray(selectedDans) ? selectedDans : [])
+            .filter((d) => Number.isInteger(d) && d >= 1 && d <= 9);
+          const dans = validDans.length > 0
+            ? Array.from(new Set(validDans)).sort((a, b) => a - b)
+            : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+          const total = Number.isInteger(totalQuestions) && totalQuestions >= 1
+            ? Math.min(81, totalQuestions)
+            : 27;
+          return { selectedDans: dans, totalQuestions: total };
+        });
+
+        // weights と 1 問目を同時に初期化して loadWeights の二重呼び出しを避ける。
+        // 既存アカウントは createAccount 時に initialWeights を永続化済みだが、
+        // 破損等で空が返った場合のフォールバックも兼ねる。
+        const [quiz, setQuiz] = useState(() => {
+          if (!account) return { weights: Engine.initialWeights(), currentQuestion: null };
+          const loaded = Storage.loadWeights(account.id);
+          const weights = Object.keys(loaded).length > 0 ? loaded : Engine.initialWeights();
+          const currentQuestion = Engine.pickQuestion(snapshot.selectedDans, weights, []);
+          return { weights, currentQuestion };
+        });
+
+        const [userInput, setUserInput] = useState("");
+        const [questionIndex, setQuestionIndex] = useState(0);
+        // feedback: null | { kind: "correct"|"wrong", userAnswer: number, correctAnswer: number }
+        const [feedback, setFeedback] = useState(null);
+        const [recent, setRecent] = useState([]);
+        const [details, setDetails] = useState([]);
+        const [correctCount, setCorrectCount] = useState(0);
+        const [showPause, setShowPause] = useState(false);
+
+        // Step 7 エフェクト state (SPEC §5.1 / prompts.md Step 7):
+        // combo: 連続正解数 (不正解でリセット)
+        // wrongStreak: 連続不正解数 (正解でリセット) — 3 連続で寄り添いトースト
+        // mascotDesired: MascotCharacter の state prop に渡す値。実表示は component 内の celebrate ロックで制御
+        // mascotCelebrateMs: celebrate 時の持続時間 (SPEC §5.3 で 3連続=1200 / 5連続=1500)。C08-06 対応。
+        // confettiBurst: { id, count, shape }。id を更新すると ConfettiCanvas の useEffect が再発火
+        // toast: { id, message, tone } — CelebrationToast 用。id ベースで key リセット
+        const [combo, setCombo] = useState(0);
+        const [wrongStreak, setWrongStreak] = useState(0);
+        const [mascotDesired, setMascotDesired] = useState("thinking");
+        const [mascotCelebrateMs, setMascotCelebrateMs] = useState(1500);
+        const [confettiBurst, setConfettiBurst] = useState({ id: 0, count: 0, shape: "square" });
+        const [toast, setToast] = useState(null);
+
+        const pausePrevFocusRef = useRef(null);
+        const sessionStartRef = useRef(Date.now());
+        const questionStartRef = useRef(Date.now());
+        const finishedRef = useRef(false);     // 完了・中断の二重実行防止
+        const advanceTimerRef = useRef(null);  // 正解時 setTimeout のハンドル
+        const toastTimerRef = useRef(null);    // トースト自動クリア用 (1.5s)
+        // 高速連打での submitAnswer 二重実行を抑止 (C06-01)。
+        // setFeedback の commit 前に 2 回目の Enter / タップが来ると closure の feedback===null 判定を
+        // すり抜けて updateWeight / saveWeights / setDetails が二重実行されるため、同期 ref で gate する。
+        // feedback が null に戻った時 (= 次問題開始) に useEffect で解除する。
+        const submittingRef = useRef(false);
+
+        const appendDigit = (d) => {
+          if (feedback !== null) return;
+          if (userInput.length >= ANSWER_MAX_LENGTH) return;
+          // "0" で始まった入力に別数字を追加するときは先頭 0 を置き換える ("05" を避ける)。
+          // "00" も意味がないので弾く。
+          if (userInput === "0") {
+            if (d === "0") return;
+            setUserInput(d);
+            return;
+          }
+          setUserInput(userInput + d);
+        };
+
+        const deleteDigit = () => {
+          if (feedback !== null) return;
+          if (userInput === "") return;
+          setUserInput(userInput.slice(0, -1));
+        };
+
+        const submitAnswer = () => {
+          if (submittingRef.current) return; // C06-01: 高速連打ガード
+          if (finishedRef.current) return;
+          if (feedback !== null) return;
+          if (userInput === "") return;
+          const parsed = parseInt(userInput, 10);
+          if (!Number.isInteger(parsed)) return;
+          if (!account) return;
+          submittingRef.current = true;
+
+          const q = quiz.currentQuestion;
+          const correctAnswer = q.dan * q.multiplier;
+          const isCorrect = parsed === correctAnswer;
+          const responseTime = Math.max(0, Date.now() - questionStartRef.current);
+
+          // 重み更新 → 永続化。書き込み失敗は _onStorageError バナーで可視化し遷移は継続 (C04-05)。
+          // SPEC §3.2: 不正解加算 +2.0 に Settings.wrongWeightBoost (0.5/1.0/2.0) を掛ける。
+          const boost = settings && typeof settings.wrongWeightBoost === "number" ? settings.wrongWeightBoost : 1.0;
+          const nextWeights = Engine.updateWeight(quiz.weights, q.dan, q.multiplier, isCorrect, boost);
+          Storage.saveWeights(account.id, nextWeights);
+
+          const detail = {
+            dan: q.dan,
+            multiplier: q.multiplier,
+            correctAnswer,
+            userAnswer: parsed,
+            isCorrect,
+            responseTime,
+          };
+
+          setDetails((prev) => prev.concat(detail));
+          if (isCorrect) setCorrectCount((prev) => prev + 1);
+          setQuiz((prev) => ({ ...prev, weights: nextWeights }));
+          setFeedback({ kind: isCorrect ? "correct" : "wrong", userAnswer: parsed, correctAnswer });
+
+          // Step 7: エフェクト発火。combo / wrongStreak を同期的に計算して 3/5 閾値判定に使う
+          const nextCombo = isCorrect ? combo + 1 : 0;
+          const nextWrongStreak = isCorrect ? 0 : wrongStreak + 1;
+          setCombo(nextCombo);
+          setWrongStreak(nextWrongStreak);
+
+          if (isCorrect) {
+            SoundPlayer.playCorrect();
+            // 連続回数に応じて段階的にエスカレートする (getComboCelebration 参照)。
+            // SPEC §5.3 の 3連続=1200ms / 5連続以上=1500ms (上限 1.5s) は維持。
+            const tier = getComboCelebration(nextCombo);
+            triggerConfettiBurst(tier.particleCount, tier.particleShape);
+            if (tier.mascotDesired === "celebrate") {
+              setMascotCelebrateMs(tier.mascotCelebrateMs);
+            }
+            setMascotDesired(tier.mascotDesired);
+            if (tier.toastMessage) {
+              showCelebrationToast(tier.toastMessage, "celebrate");
+            }
+            // 800ms 後に自動で次の問題へ。latestHandlersRef 経由で最新 advance を呼び stale closure を避ける。
+            advanceTimerRef.current = window.setTimeout(() => {
+              advanceTimerRef.current = null;
+              latestHandlersRef.current.advance();
+            }, CORRECT_ADVANCE_MS);
+          } else {
+            SoundPlayer.playWrong();
+            setMascotDesired("sad");
+            // 3 連続不正解で寄り添いトースト (SPEC §5.1 / prompts.md Step 7)
+            if (nextWrongStreak >= 3) {
+              showCelebrationToast("いっしょに がんばろう", "encourage");
+            }
+          }
+        };
+
+        // 紙吹雪バーストのトリガ。id をインクリメントして ConfettiCanvas の useEffect を再発火させる
+        const triggerConfettiBurst = (count, shape) => {
+          setConfettiBurst((prev) => ({ id: prev.id + 1, count, shape: shape || "square" }));
+        };
+
+        // トーストを表示し 1.5s 後にクリア。連打されたときは既存タイマーをキャンセルして上書き
+        const showCelebrationToast = (message, tone) => {
+          setToast((prev) => ({ id: (prev && prev.id ? prev.id : 0) + 1, message, tone: tone || "celebrate" }));
+          if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = window.setTimeout(() => {
+            toastTimerRef.current = null;
+            setToast(null);
+          }, 1500);
+        };
+
+        const advance = () => {
+          if (finishedRef.current) return;
+          if (advanceTimerRef.current !== null) {
+            clearTimeout(advanceTimerRef.current);
+            advanceTimerRef.current = null;
+          }
+          const nextIndex = questionIndex + 1;
+          if (nextIndex >= snapshot.totalQuestions) {
+            // 完了遷移。advance は毎 render で再生成されるため details/correctCount は最新 render 時点の値。
+            finishedRef.current = true;
+            if (account) {
+              // C06-09: 超高速セッションで elapsedTime===0 になるのを防ぎ最低 1 秒に丸める。
+              const elapsedTime = Math.max(1, Math.round((Date.now() - sessionStartRef.current) / 1000));
+              const result = {
+                sessionId: Util.uuid(),
+                timestamp: Date.now(),
+                // C06-08: JSON.stringify で深コピーされるため .slice() は省略 (Object.freeze 契約は SPEC §2.2 に明記)。
+                selectedDans: snapshot.selectedDans,
+                totalQuestions: snapshot.totalQuestions,
+                correctCount,
+                elapsedTime,
+                details,
+              };
+              const existing = Storage.loadSessions(account.id);
+              const saved = Storage.saveSessions(account.id, existing.concat(result));
+              // C07-04: saveSessions 失敗時は history.state に SessionResult を退避して
+              // ResultScreen が前回セッションを誤表示しないようにする。成功時は localStorage が SSOT。
+              leaveQuizWithMarker("#/result", saved ? null : { kukuSessionResult: result });
+            } else {
+              leaveQuizWithMarker("#/result");
+            }
+            return;
+          }
+          const q = quiz.currentQuestion;
+          const qKey = q.dan + "-" + q.multiplier;
+          const nextRecent = recent.concat(qKey).slice(-RECENT_BUFFER_SIZE);
+          const nextQuestion = Engine.pickQuestion(snapshot.selectedDans, quiz.weights, nextRecent);
+          setRecent(nextRecent);
+          setQuiz((prev) => ({ ...prev, currentQuestion: nextQuestion }));
+          setQuestionIndex(nextIndex);
+          setUserInput("");
+          setFeedback(null);
+          // 次問題開始: マスコットは thinking に戻す (SPEC §5.3 状態遷移表)
+          setMascotDesired("thinking");
+          questionStartRef.current = Date.now();
+        };
+
+        const pressEnter = () => {
+          if (finishedRef.current) return;
+          if (feedback === null) {
+            submitAnswer();
+          } else if (feedback.kind === "wrong") {
+            advance();
+          }
+          // feedback.kind === "correct" のときは自動進行中なので無視
+        };
+
+        const openPause = () => {
+          pausePrevFocusRef.current = document.activeElement;
+          setShowPause(true);
+        };
+        const closePause = () => setShowPause(false);
+        const confirmPause = () => {
+          finishedRef.current = true;
+          if (advanceTimerRef.current !== null) {
+            clearTimeout(advanceTimerRef.current);
+            advanceTimerRef.current = null;
+          }
+          // C08-05: 3 連続不正解トースト等の 1.5s タイマが unmount より先に fire して
+          //        dead component への setToast(null) を呼ぶ race を明示的に塞ぐ。
+          //        unmount useEffect cleanup でも clear されるが、確実性のため中断経路でも明示 clear する。
+          if (toastTimerRef.current !== null) {
+            clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = null;
+          }
+          setShowPause(false);
+          // 未完了セッションは saveSessions しない (SPEC §4.3)。
+          // C06-02: バッファエントリに kukuExhausted マーカーを書いてから #/home を push して
+          // 戻るボタンでの再入を抑止する。
+          leaveQuizWithMarker("#/home");
+        };
+
+        // C06-02: advance 完了 / confirmPause の 2 経路で履歴を共通処理化。
+        // 現バッファエントリに { kukuExhausted: true } マーカーを書き込み、
+        // 次ルートを pushState + 手動 hashchange で App に通知する。
+        // window.location.replace を使うと state が null 上書きされマーカーが失われるため使用しない。
+        // C07-04: nextState を渡すと #/result 側エントリに kukuSessionResult を乗せられる。
+        // try/catch は Safari の pushState throttle (C06-17) 対策。
+        const leaveQuizWithMarker = (nextHash, nextState) => {
+          try {
+            window.history.replaceState({ kukuExhausted: true }, "", "#/quiz");
+            window.history.pushState(nextState || null, "", nextHash);
+          } catch (_) {
+            // Safari の throttle などで pushState が失敗した場合は location.replace で fallback。
+            window.location.replace(nextHash);
+            return;
+          }
+          try {
+            window.dispatchEvent(new Event("hashchange"));
+          } catch (_) {
+            // 古い環境で Event constructor が使えない場合は createEvent でフォールバック。
+            const e = document.createEvent("Event");
+            e.initEvent("hashchange", false, false);
+            window.dispatchEvent(e);
+          }
+        };
+
+        // window level の keydown / setTimeout から最新ハンドラを同期参照する (stale closure 回避)
+        const latestHandlersRef = useRef({ advance, pressEnter, appendDigit, deleteDigit, submitAnswer, openPause });
+        useEffect(() => {
+          latestHandlersRef.current = { advance, pressEnter, appendDigit, deleteDigit, submitAnswer, openPause };
+        });
+        const showPauseRef = useRef(showPause);
+        useEffect(() => { showPauseRef.current = showPause; });
+
+        // feedback が null = 次問題の入力受付フェーズ → 連打ガードを解除 (C06-01)
+        useEffect(() => {
+          if (feedback === null) submittingRef.current = false;
+        }, [feedback]);
+
+        // 物理キーボード: 0-9 / Enter / Backspace / Esc (prompts.md Step 5)
+        useEffect(() => {
+          const onKey = (e) => {
+            if (showPauseRef.current) return; // モーダル開閉中は useModalFocusTrap に委ねる
+            // C06-05: IME 変換中の Enter / Backspace を遮断する。
+            // CreateAccountModal C04-08 と同方針で isComposing / keyCode===229 を確認し、
+            // 日本語 IME 合成終了直前の Enter で意図せず回答が確定しないようにする。
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === "Escape") {
+              e.preventDefault();
+              latestHandlersRef.current.openPause();
+              return;
+            }
+            if (e.key === "Enter") {
+              e.preventDefault();
+              latestHandlersRef.current.pressEnter();
+              return;
+            }
+            if (e.key === "Backspace") {
+              e.preventDefault();
+              latestHandlersRef.current.deleteDigit();
+              return;
+            }
+            if (e.key.length === 1 && e.key >= "0" && e.key <= "9") {
+              e.preventDefault();
+              latestHandlersRef.current.appendDigit(e.key);
+            }
+          };
+          window.addEventListener("keydown", onKey);
+          return () => window.removeEventListener("keydown", onKey);
+        }, []);
+
+        // ブラウザ戻るボタン: 中断確認ダイアログを挟む (SPEC §4.3)。
+        // マウント時にダミー #/quiz エントリを積み、1 回の back をここで吸収する。
+        // popstate 発火時に再度 pushState("#/quiz") して UI を保持しつつモーダルを開く。
+        //
+        // C06-02: 完了・中断経由で back した際は state.kukuExhausted マーカー付きの #/quiz に戻ってくる。
+        // その場合は新セッションを始めずに #/home へ退避する。
+        //
+        // C06-17: Safari の pushState は 30 秒で 100 回の throttle 上限を持つため try/catch で握り潰す。
+        useEffect(() => {
+          if (window.history.state && window.history.state.kukuExhausted) {
+            window.location.replace("#/home");
+            return;
+          }
+          try { window.history.pushState(null, "", "#/quiz"); } catch (_) {}
+          const onPopState = () => {
+            if (finishedRef.current) return;
+            // C06-04 / C06-06: モーダルが既に開いている間の追加 back は
+            // バッファ補充のみに留め、pausePrevFocusRef をモーダル内ボタンで
+            // 上書きしないようにする。
+            if (showPauseRef.current) {
+              try { window.history.pushState(null, "", "#/quiz"); } catch (_) {}
+              return;
+            }
+            try { window.history.pushState(null, "", "#/quiz"); } catch (_) {}
+            pausePrevFocusRef.current = document.activeElement;
+            setShowPause(true);
+          };
+          window.addEventListener("popstate", onPopState);
+          return () => window.removeEventListener("popstate", onPopState);
+        }, []);
+
+        // アンマウント時に保留中タイマを破棄 (画面遷移で即解除)
+        useEffect(() => {
+          return () => {
+            if (advanceTimerRef.current !== null) {
+              clearTimeout(advanceTimerRef.current);
+              advanceTimerRef.current = null;
+            }
+            if (toastTimerRef.current !== null) {
+              clearTimeout(toastTimerRef.current);
+              toastTimerRef.current = null;
+            }
+          };
+        }, []);
+
+        // Navigation Guard 発火前の過渡フレーム対策 (C04-05)
+        if (!account || !quiz.currentQuestion) return null;
+
+        const q = quiz.currentQuestion;
+        const progressPercent = Math.round((questionIndex / snapshot.totalQuestions) * 100);
+        const canSubmit = feedback === null && userInput !== "";
+        const canDelete = feedback === null && userInput !== "";
+
+        return (
+          <main className="min-h-screen flex flex-col px-4 py-4 max-w-2xl mx-auto w-full">
+            <header className="flex items-center justify-between gap-3">
+              <div className="text-slate-700 text-lg font-bold tabular-nums" aria-live="polite">
+                もんだい {questionIndex + 1} / {snapshot.totalQuestions}
+              </div>
+              <div className="flex items-center gap-3">
+                {/* マスコット: effectsEnabled=false なら component 側で null 返却 */}
+                {/* C08-06: celebrateDurationMs を combo 閾値から送り分け (SPEC §5.3 準拠) */}
+                <MascotCharacter state={mascotDesired} size="sm" celebrateDurationMs={mascotCelebrateMs} />
+                <button
+                  type="button"
+                  onClick={openPause}
+                  className="min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300 transition-colors"
+                >
+                  ちゅうだん
+                </button>
+              </div>
+            </header>
+
+            {/* 進捗バー: width を transition-all (~150ms) で補間。点滅 / 強フラッシュは一切なし (SPEC §5.0) */}
+            <div
+              className="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={snapshot.totalQuestions}
+              aria-valuenow={questionIndex}
+              aria-label="しんちょく"
+            >
+              <div
+                className="h-full bg-indigo-500 transition-all"
+                style={{ width: progressPercent + "%" }}
+              />
+            </div>
+
+            <section className="mt-6 flex flex-col items-center">
+              {/* 問題表示: 64px 以上要件 (text-7xl=72px / md:text-8xl=96px) */}
+              <div className="text-center">
+                <p className="text-7xl md:text-8xl font-bold text-indigo-700 tabular-nums leading-tight">
+                  {q.dan} × {q.multiplier} = ?
+                </p>
+              </div>
+
+              {/* 回答入力表示: feedback に応じて枠色・背景色をパステル域で切替 (SPEC §5.0) */}
+              <div
+                className={
+                  feedback === null
+                    ? "mt-6 w-full max-w-md min-h-[96px] rounded-2xl border-4 border-slate-300 bg-white flex items-center justify-center transition-colors"
+                    : feedback.kind === "correct"
+                      ? "mt-6 w-full max-w-md min-h-[96px] rounded-2xl border-4 border-green-500 bg-green-50 flex items-center justify-center transition-colors"
+                      : "mt-6 w-full max-w-md min-h-[96px] rounded-2xl border-4 border-rose-500 bg-rose-50 flex items-center justify-center transition-colors"
+                }
+              >
+                {userInput === "" ? (
+                  <span className="text-6xl font-bold text-slate-300 tabular-nums" aria-hidden="true">?</span>
+                ) : (
+                  <span className="text-6xl font-bold text-slate-800 tabular-nums">{userInput}</span>
+                )}
+              </div>
+
+              {/* フィードバック: aria-live="polite" で読み上げ。高さを固定してレイアウトジャンプを避ける */}
+              <div className="mt-3 min-h-[96px] w-full max-w-md text-center" role="status" aria-live="polite">
+                {feedback !== null && feedback.kind === "correct" && (
+                  <p className="text-3xl font-bold text-green-600">○ せいかい！</p>
+                )}
+                {feedback !== null && feedback.kind === "wrong" && (
+                  <div>
+                    <p className="text-3xl font-bold text-rose-600">× おしいっ</p>
+                    <p className="mt-2 text-xl text-slate-700">
+                      こたえは{" "}
+                      <span className="text-3xl font-bold text-indigo-700 tabular-nums">{feedback.correctAnswer}</span>
+                      {" "}だよ
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* 下部: 不正解フィードバック中は「つぎへ」、それ以外はテンキー */}
+            {feedback !== null && feedback.kind === "wrong" ? (
+              <div className="mt-auto pt-4">
+                <button
+                  type="button"
+                  onClick={advance}
+                  autoFocus
+                  className="w-full min-h-[72px] px-10 py-5 bg-indigo-600 text-white text-2xl font-bold rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                >
+                  つぎへ
+                </button>
+              </div>
+            ) : (
+              <div className="mt-auto pt-4 grid grid-cols-3 gap-2 sm:gap-3" role="group" aria-label="テンキー">
+                {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => appendDigit(String(n))}
+                    disabled={feedback !== null}
+                    aria-label={String(n)}
+                    className={
+                      feedback !== null
+                        ? "min-h-[72px] text-3xl font-bold rounded-2xl border-2 border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed transition-colors"
+                        : "min-h-[72px] text-3xl font-bold rounded-2xl border-2 border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                    }
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={deleteDigit}
+                  disabled={!canDelete}
+                  className={
+                    canDelete
+                      ? "min-h-[72px] text-xl font-bold rounded-2xl border-2 border-amber-300 bg-white text-amber-700 hover:bg-amber-50 focus:outline-none focus:ring-4 focus:ring-amber-300 transition-colors"
+                      : "min-h-[72px] text-xl font-bold rounded-2xl border-2 border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed transition-colors"
+                  }
+                >
+                  けす
+                </button>
+                <button
+                  type="button"
+                  onClick={() => appendDigit("0")}
+                  disabled={feedback !== null}
+                  aria-label="0"
+                  className={
+                    feedback !== null
+                      ? "min-h-[72px] text-3xl font-bold rounded-2xl border-2 border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed transition-colors"
+                      : "min-h-[72px] text-3xl font-bold rounded-2xl border-2 border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                  }
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAnswer}
+                  disabled={!canSubmit}
+                  className={
+                    canSubmit
+                      ? "min-h-[72px] text-xl font-bold rounded-2xl bg-indigo-600 text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                      : "min-h-[72px] text-xl font-bold rounded-2xl bg-slate-300 text-white cursor-not-allowed transition-colors"
+                  }
+                >
+                  こたえる
+                </button>
+              </div>
+            )}
+
+            {showPause && (
+              <PauseConfirmModal
+                onCancel={closePause}
+                onConfirm={confirmPause}
+                previousFocusRef={pausePrevFocusRef}
+              />
+            )}
+
+            {/* Step 7 オーバーレイエフェクト。effectsEnabled=false なら各 component が null を返す */}
+            <ConfettiCanvas burstId={confettiBurst.id} count={confettiBurst.count} shape={confettiBurst.shape} />
+            <ComboCounter combo={combo} />
+            <CelebrationToast
+              burstKey={toast ? toast.id : 0}
+              message={toast ? toast.message : null}
+              tone={toast ? toast.tone : null}
+            />
+          </main>
+        );
+      }
+
+      // ── screens: ResultScreen ────────────────────────────────────
+      // 参照: SPEC.md §2.2 / §4.1 / §5.0 / prompts.md Step 6
+
+      const ResultHelpers = {
+        /**
+         * 正答率に応じて 1〜5 の星数を返す。子供の自己肯定感を下げないため最低 1 個は灯す。
+         * @param {number} correctRate - 0.0 〜 1.0
+         * @returns {number} 1〜5
+         */
+        starRating(correctRate) {
+          if (correctRate >= 0.9) return 5;
+          if (correctRate >= 0.7) return 4;
+          if (correctRate >= 0.5) return 3;
+          if (correctRate >= 0.3) return 2;
+          return 1;
+        },
+
+        /**
+         * 秒数を M:SS / H:MM:SS 形式に整形。負値・NaN は 0 にクランプ。
+         * SPEC §2.2 で elapsedTime は最小 1 秒 (C06-09) だが防御的に 0 も受ける。
+         * 60 分超は時間繰り上げ (C07-16) で 60:00 のまま分が肥大化するのを避ける。
+         * @param {number} elapsedSeconds
+         * @returns {string}
+         */
+        formatTime(elapsedSeconds) {
+          const safe = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.floor(elapsedSeconds)) : 0;
+          const h = Math.floor(safe / 3600);
+          const m = Math.floor((safe % 3600) / 60);
+          const s = safe % 60;
+          const pad = (n) => (n < 10 ? "0" + n : "" + n);
+          if (h > 0) return h + ":" + pad(m) + ":" + pad(s);
+          return m + ":" + pad(s);
+        },
+
+        /**
+         * SessionResult が最低限のスキーマを満たすか検証。
+         * C07-03 / C07-08: timestamp NaN / 非数値 correctCount / totalQuestions <= 0 を弾く。
+         * localStorage 破損 / 拡張機能干渉 / 旧スキーマ混入で不正 SessionResult が混じる前提の防御。
+         * @param {*} s
+         * @returns {boolean}
+         */
+        isValidSession(s) {
+          return !!s
+            && Number.isFinite(s.timestamp)
+            && Number.isFinite(s.totalQuestions) && s.totalQuestions > 0
+            && Number.isFinite(s.correctCount) && s.correctCount >= 0
+            && s.correctCount <= s.totalQuestions;
+        },
+
+        /**
+         * セッション一覧から最新 1 件と前回 1 件を取り出す。
+         * SPEC §2.2 mutation 禁止契約 (C06-13): in-place sort を避けるため slice してから sort する。
+         * C07-08: 破損エントリは isValidSession で除外し、pickLatestAndPrevious の結果が NaN 伝播で
+         * UI に `NaN%` / 意図外 sort を起こさないようにする。
+         * @param {SessionResult[]} sessions
+         * @returns {{ latest: SessionResult|null, previous: SessionResult|null }}
+         */
+        pickLatestAndPrevious(sessions) {
+          if (!Array.isArray(sessions) || sessions.length === 0) {
+            return { latest: null, previous: null };
+          }
+          const valid = sessions.filter(ResultHelpers.isValidSession);
+          if (valid.length === 0) return { latest: null, previous: null };
+          const sorted = valid.slice().sort(function (a, b) { return b.timestamp - a.timestamp; });
+          return { latest: sorted[0] || null, previous: sorted[1] || null };
+        },
+      };
+
+      /**
+       * セッション完了後の結果サマリー画面。
+       * - SessionResult は localStorage の最新エントリ (timestamp 降順) から取得 (SPEC §2.2)。
+       * - C06-13: 取得した SessionResult / QuestionDetail は読み取り専用で扱い、加工は slice / filter で新配列を作る。
+       * - SPEC §4.1: 「ホームへ」遷移は replace を使い back で結果に戻れないようにする。
+       * - C05-14 救済: 「もういちど」では SessionResult.selectedDans / totalQuestions を Context に書き戻してから
+       *   #/quiz に遷移する。これによりリロード経由で Context が初期値に戻ったケースでも同条件で再開できる。
+       * - 結果が無い (直接 #/result アクセス / 履歴破損 等) は useEffect で #/home に退避する。
+       */
+      function ResultScreen() {
+        const { account, setSelectedDans, setTotalQuestions } = useContext(AppContext);
+        // C07-13: iOS Safari BFCache 復元時に useMemo キャッシュが陳腐化するため、
+        // pageshow (persisted=true) でカウンタを増やし再計算する。
+        const [reloadTick, setReloadTick] = useState(0);
+        useEffect(() => {
+          const onPageShow = (e) => { if (e.persisted) setReloadTick((n) => n + 1); };
+          window.addEventListener("pageshow", onPageShow);
+          return () => window.removeEventListener("pageshow", onPageShow);
+        }, []);
+
+        // Step 7 結果画面エフェクト state: マウント直後に大紙吹雪 + ファンファーレ + マスコット celebrate
+        const [confettiBurst, setConfettiBurst] = useState({ id: 0, count: 0, shape: "square" });
+        const [mascotDesired, setMascotDesired] = useState("idle");
+
+        // セッションを取得する。account 切替の過渡フレームでは null になりうる (C04-05 / C06-10)。
+        // C07-04: QuizScreen が saveSessions 失敗時に history.state に退避した kukuSessionResult を
+        // 優先参照し、localStorage からの誤った前回セッション表示を避ける。
+        // useMemo の dep には account.id と reloadTick を入れる (C07-13)。
+        const sessionData = useMemo(function () {
+          if (!account) return { latest: null, previous: null };
+          const stored = ResultHelpers.pickLatestAndPrevious(Storage.loadSessions(account.id));
+          const fromState = (window.history && window.history.state && window.history.state.kukuSessionResult) || null;
+          if (fromState && ResultHelpers.isValidSession(fromState)) {
+            // stored.latest は saveSessions 失敗時には「前回」扱い。
+            return { latest: fromState, previous: stored.latest };
+          }
+          return stored;
+        }, [account ? account.id : null, reloadTick]);
+
+        const latest = sessionData.latest;
+        const previous = sessionData.previous;
+
+        // セッション 0 件で #/result に直接到達したケースは #/home に退避。
+        // render 中の navigate 副作用は React 違反のため useEffect 経由で実行する。
+        useEffect(() => {
+          if (account && !latest) {
+            window.location.replace("#/home");
+          }
+        }, [account, latest]);
+
+        // Esc キーで「ホームへ」(= window.location.replace("#/home")) と同等の動作 (Step 9 キーボード操作完全対応)。
+        // ここで早期 return より前に hook を呼び出さないと Hooks 規則違反になるため、
+        // handleHome 相当の navigate 処理は hook 内で完結させる (C10-08: stale closure 回避のため
+        // window.location を直接参照し handleHome の参照は持たない)。
+        // モーダル表示中は ModalStack 経由の Esc を尊重し二重発火させない (C10-09)。
+        useEffect(() => {
+          const onKey = (e) => {
+            if (ModalStack.length > 0) return;
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === "Escape") {
+              e.preventDefault();
+              window.location.replace("#/home");
+            }
+          };
+          window.addEventListener("keydown", onKey);
+          return () => window.removeEventListener("keydown", onKey);
+        }, []);
+
+        // C10-01: 祝祭演出 useEffect と firedForSessionRef を早期 return より前に配置する。
+        //        以前は `if (!latest) return <main>...</main>` の後方に定義していたため、
+        //        latest が null→truthy に遷移するレンダで「Rendered more hooks」エラーを起こす
+        //        潜在的 Hooks 規則違反があった。hook 内部で `if (!latest) return;` ガードして
+        //        副作用を抑止する。
+        //        C08-02: #/result 直接リロード経路で firstGesture 未発火のまま useEffect がまず走るため、
+        //                ensureAudioContext を先行呼び出しして suspended なら resume を試みた後に playFanfare する。
+        //                iOS は gesture tick 外の resume を許さないため直接リロード時の無音は避けられないが、
+        //                それ以外の正常導線 (HomeScreen 経由 / BFCache 復元 + visibilitychange invalidate 後) では
+        //                復帰時に発音できる。
+        const firedForSessionRef = useRef(null);
+        useEffect(() => {
+          if (!latest) return;
+          if (firedForSessionRef.current === latest.sessionId) return;
+          firedForSessionRef.current = latest.sessionId;
+          const rate = latest.totalQuestions > 0
+            ? latest.correctCount / latest.totalQuestions
+            : 0;
+          const isStrong = rate >= 0.8;
+          // 60-100 粒 (正答率が高いほど多く)
+          const particleCount = isStrong ? 90 : 65;
+          const shape = isStrong ? "star" : "square";
+          setConfettiBurst({ id: Date.now(), count: particleCount, shape });
+          setMascotDesired(isStrong ? "celebrate" : "happy");
+          const p = SoundPlayer.ensureAudioContext();
+          if (p && typeof p.then === "function") {
+            p.then(function () { SoundPlayer.playFanfare(); })
+              .catch(function (err) {
+                console.warn("[kuku-dojo] audio: result fanfare ensure failed:", err && err.message);
+                SoundPlayer.playFanfare(); // 失敗しても play 側の内部 guard で黙って落ちるだけ
+              });
+          } else {
+            SoundPlayer.playFanfare();
+          }
+        }, [latest ? latest.sessionId : null]);
+
+        // 過渡フレーム / アカウント未確定は完全に描画なし (App が LoginScreen にフォールバック)
+        if (!account) return null;
+        // C07-07: 直接 #/result アクセス / セッション 0 件のケースで空白フレームを見せない。
+        // useEffect の replace("#/home") が走るまでの 1 フレームに中継文言を出す。
+        if (!latest) {
+          return (
+            <main className="min-h-screen flex items-center justify-center px-4 py-6">
+              <p className="text-lg text-slate-600">ホームへ もどるよ…</p>
+            </main>
+          );
+        }
+
+        // latest は ResultHelpers.isValidSession で totalQuestions > 0 / correctCount 整合が保証済 (C07-03 / C07-08)
+        const total = latest.totalQuestions;
+        const correct = latest.correctCount;
+        const correctRate = correct / total;
+        const ratePercent = Math.round(correctRate * 100);
+        const stars = ResultHelpers.starRating(correctRate);
+        const elapsedDisplay = ResultHelpers.formatTime(latest.elapsedTime);
+
+        // 間違えた問題: details から isCorrect===false を抽出。filter は新配列を返すため C06-13 違反にならない。
+        // details は出題順なので時系列で並ぶ。
+        const wrongDetails = (Array.isArray(latest.details) ? latest.details : [])
+          .filter(function (d) { return d && d.isCorrect === false; });
+        // C07-06: 「ぜんぶ せいかい」表示は correctCount と wrongDetails の両方で整合を要求。
+        // details 破損 (length=0) + correctCount<total のケースで誤って「ぜんぶ せいかい」と出さない。
+        const isAllCorrect = correct >= total && wrongDetails.length === 0;
+        const isDetailsMissing = wrongDetails.length === 0 && !isAllCorrect;
+
+        // 前回比較: previous が無い (= 初回セッション) なら null で非表示
+        const previousRate = previous && previous.totalQuestions > 0
+          ? previous.correctCount / previous.totalQuestions
+          : null;
+        const rateDiff = previousRate !== null ? ratePercent - Math.round(previousRate * 100) : null;
+
+        // Step 7: マウント直後の大紙吹雪 + ファンファーレは C10-01 で早期 return より前に移設済み。
+
+        // C07-10: 「もういちど」で何が始まるかをボタン内に明示するための表示文字列。
+        // selectedDans が不正な場合は [1..9] にフォールバックし Engine 側の正規化と揃える。
+        const retryDans = Array.isArray(latest.selectedDans) && latest.selectedDans.length > 0
+          ? latest.selectedDans.filter((d) => Number.isInteger(d) && d >= 1 && d <= 9)
+          : [];
+        const retryDanLabel = retryDans.length === 0 || retryDans.length >= 9
+          ? "ぜんぶの だん"
+          : retryDans.join("・") + "の だん";
+        const retrySummary = retryDanLabel + " / " + latest.totalQuestions + "もん";
+
+        const handleRetry = () => {
+          // 同じ設定で新セッション。Context が破棄されている経路 (リロード等) でも復元できる (C05-14)。
+          // C06-13: 配列は slice で防御的に複製。Engine 側の正規化があるため値域は不問。
+          const restoredDans = retryDans.length > 0
+            ? retryDans.slice()
+            : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+          setSelectedDans(restoredDans);
+          setTotalQuestions(latest.totalQuestions);
+          // push 遷移。HomeScreen.handleStart と同じ挙動で、QuizScreen 側 popstate ガードに任せる。
+          window.location.hash = "#/quiz";
+        };
+
+        const handleHome = () => {
+          // SPEC §4.1: 結果サマリーからホームへの遷移は replace で back を抑止する。
+          window.location.replace("#/home");
+        };
+
+        return (
+          <main className="min-h-screen flex flex-col items-center px-4 py-6">
+            <div className="w-full max-w-2xl flex flex-col gap-4">
+              <header className="text-center">
+                <h1 className="text-3xl md:text-4xl font-bold text-indigo-700">
+                  けっか はっぴょう
+                </h1>
+                {/* マスコットは effectsEnabled=false なら非表示 (SPEC §5.4 純テキスト退行) */}
+                {/* C08-06: SPEC §5.3 結果画面は celebrate 1500ms を明示的に指定 */}
+                <div className="mt-2 flex justify-center">
+                  <MascotCharacter state={mascotDesired} size="lg" celebrateDurationMs={1500} />
+                </div>
+                {/* C06-11: 完了の達成感を aria-live で読み上げる。
+                    C07-02: 正答率帯で文言を分岐し、低スコア時も寄り添う言葉を出す。 */}
+                <p className="mt-2 text-lg text-slate-700" aria-live="polite">
+                  {correctRate >= 0.9
+                    ? "すごい！ " + correct + " / " + total + " もん せいかい！"
+                    : correctRate >= 0.5
+                      ? correct + " / " + total + " もん できたよ！"
+                      : correct + " / " + total + " もん できたね！ つぎも いっしょに がんばろう"}
+                </p>
+              </header>
+
+              {/* メインスコアカード */}
+              <section
+                className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6 text-center"
+                aria-labelledby="kuku-result-score"
+              >
+                <h2 id="kuku-result-score" className="sr-only">スコア</h2>
+                <div className="text-7xl md:text-8xl font-bold text-indigo-700 tabular-nums leading-tight">
+                  <span>{correct}</span>
+                  <span className="text-3xl md:text-4xl text-slate-400 mx-2" aria-hidden="true">/</span>
+                  <span>{total}</span>
+                </div>
+                <div className="mt-3 text-xl text-slate-600">
+                  せいかいりつ{" "}
+                  <span className="text-2xl font-bold text-indigo-700 tabular-nums">{ratePercent}</span>
+                  <span className="text-2xl font-bold text-indigo-700">%</span>
+                </div>
+                <div className="mt-1 text-xl text-slate-600">
+                  じかん{" "}
+                  <span className="text-2xl font-bold text-slate-800 tabular-nums">{elapsedDisplay}</span>
+                </div>
+
+                {/* 星評価: 1〜5 個の SVG 星を amber / slate で塗り分ける。
+                    C07-01: ★ (U+2605) は OS の絵文字カラーフォントで color 上書きが効かない端末があるため SVG 化。
+                    C07-12: amber-400 の対白コントラスト ~2:1 から amber-500 に格上げし WCAG 1.4.11 3:1 に近付ける。 */}
+                <div
+                  className="mt-4 flex justify-center gap-1"
+                  role="img"
+                  aria-label={"ほし " + stars + " こ"}
+                >
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <svg
+                      key={i}
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className={
+                        i <= stars
+                          ? "w-12 h-12 text-amber-500 drop-shadow-sm"
+                          : "w-12 h-12 text-slate-300"
+                      }
+                    >
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.951.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.098 10.1c-.783-.57-.38-1.81.588-1.81h4.915a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  ))}
+                </div>
+
+                {/* 前回比較: previous が無い (= 初回) なら非表示
+                    C07-02 / C07-05: 負号表示・赤色を廃し、悪化時も寄り添う文言に差し替え。
+                    rose-600 は自己否定的に読めるため indigo-600 に変更し、Math.abs で "-" を見せない。 */}
+                {rateDiff !== null && (
+                  <div className="mt-4 text-base text-slate-600">
+                    {rateDiff > 0 ? (
+                      <span>
+                        まえより{" "}
+                        <span className="text-lg font-bold text-green-600 tabular-nums">
+                          {rateDiff}%
+                        </span>
+                        {" "}あがった！
+                      </span>
+                    ) : rateDiff < 0 ? (
+                      <span>
+                        まえより{" "}
+                        <span className="text-lg font-bold text-indigo-600 tabular-nums">
+                          {Math.abs(rateDiff)}%
+                        </span>
+                        {" "}もうちょっと！
+                      </span>
+                    ) : (
+                      <span className="text-lg font-bold text-slate-600">まえと おなじくらい がんばった！</span>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              {/* 間違えた問題一覧: max-h + overflow-y-auto で問題数に関係なくスクロール表示 */}
+              <section
+                className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                aria-labelledby="kuku-result-wrong-title"
+              >
+                <h2 id="kuku-result-wrong-title" className="text-xl font-bold text-slate-700">
+                  まちがえた もんだい
+                </h2>
+                {isAllCorrect ? (
+                  <p className="mt-3 text-lg text-green-700">ぜんぶ せいかい！すごいね！</p>
+                ) : isDetailsMissing ? (
+                  <p className="mt-3 text-base text-slate-500">きろくの いちぶが みつからないよ</p>
+                ) : (
+                  <ul className="mt-3 max-h-[40vh] overflow-y-auto pr-1 divide-y divide-slate-200">
+                    {/* C07-14: 同一問題が複数回出題されるケースを想定し key を複合化 (Step 7 でアニメ追加時の差分保護)。 */}
+                    {wrongDetails.map((d, i) => (
+                      <li key={d.dan + "x" + d.multiplier + "-" + i} className="py-3 flex items-center justify-between gap-3">
+                        <span className="text-2xl font-bold text-slate-800 tabular-nums">
+                          {d.dan} × {d.multiplier} =
+                        </span>
+                        {/* 色覚多様性配慮 (Step 9): 色だけでなく × / ○ 記号で正誤を示す。
+                            aria-hidden で SR 読み上げは重複させず、行頭ラベル「きみ」「せいかい」に委ねる。
+                            C10-03: 不正解マークは QuizScreen と同じ × (U+00D7) を使う。U+2717 (HEAVY BALLOT X) は
+                            iOS で Apple Color Emoji のフォールバックに載り text-rose-600 の currentColor が
+                            効かない端末があるため避ける。 */}
+                        <span className="text-base text-slate-600 flex flex-col items-end gap-0.5">
+                          <span>
+                            <span className="text-rose-600 font-bold mr-1" aria-hidden="true">×</span>
+                            きみ:{" "}
+                            <span className="text-rose-600 font-bold tabular-nums">{d.userAnswer}</span>
+                          </span>
+                          <span>
+                            <span className="text-green-700 font-bold mr-1" aria-hidden="true">○</span>
+                            せいかい:{" "}
+                            <span className="text-indigo-700 font-bold tabular-nums">{d.correctAnswer}</span>
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* ボタン: もういちど (primary) / ホームへ (secondary)
+                  C07-10: 「もういちど」下に retrySummary を小さく配置し、遷移先の設定を子供に明示する。 */}
+              <section className="flex flex-col sm:flex-row gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="flex-1 min-h-[72px] px-8 py-4 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                >
+                  <span className="block text-2xl font-bold">もういちど</span>
+                  <span className="block text-sm font-normal text-indigo-100 mt-0.5">{retrySummary}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHome}
+                  className="flex-1 min-h-[72px] px-8 py-4 bg-white text-indigo-700 rounded-2xl border-2 border-indigo-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                >
+                  <span className="block text-2xl font-bold">ホームへ</span>
+                  <span className="block text-sm font-normal text-indigo-400 mt-0.5">だんを えらびなおす</span>
+                </button>
+              </section>
+            </div>
+
+            {/* Step 7 大紙吹雪オーバーレイ。effectsEnabled=false なら component 側で null */}
+            <ConfettiCanvas burstId={confettiBurst.id} count={confettiBurst.count} shape={confettiBurst.shape} />
+          </main>
+        );
+      }
+
+      // ── screens: StatsScreen ─────────────────────────────────────
+      // 参照: SPEC.md §2.2 / §3.3 / §4.1 / prompts.md Step 8
+
+      // 習熟度レベル (SPEC §3.3) に対応する UI メタ。
+      // Tailwind CLI は正規表現ベースで class を抽出するため、cellCls / legendCls は
+      // **完全な class 文字列**で静的に列挙する (CLAUDE.md 「Tailwind クラスの記述ルール」)。
+      // 色は SPEC §3.3 の参考色に最も近い Tailwind パステル系を採用 (SPEC §5.0 彩度方針とも整合)。
+      const PROFICIENCY_META = [
+        { label: "みちょうせん", cellCls: "bg-slate-200 text-slate-600 border-slate-300", legendCls: "bg-slate-200 text-slate-700 border-slate-300" },
+        { label: "にがて",        cellCls: "bg-rose-300 text-rose-900 border-rose-400",   legendCls: "bg-rose-300 text-rose-900 border-rose-400" },
+        { label: "もうすこし",    cellCls: "bg-orange-300 text-orange-900 border-orange-400", legendCls: "bg-orange-300 text-orange-900 border-orange-400" },
+        { label: "まあまあ",      cellCls: "bg-yellow-200 text-yellow-900 border-yellow-400", legendCls: "bg-yellow-200 text-yellow-900 border-yellow-400" },
+        { label: "とくい",        cellCls: "bg-green-300 text-green-900 border-green-400", legendCls: "bg-green-300 text-green-900 border-green-400" },
+      ];
+
+      // SPEC §3.3: 習熟度マップの「直近正答率」を算出する参照セッション数
+      const STATS_RECENT_N = 5;
+
+      const StatsHelpers = {
+        /**
+         * 履歴用のかんたんな日時表記。
+         * 同じ年は "M/D HH:MM"、異なる年は "YY/M/D HH:MM"（年跨ぎの時系列誤認を防ぐ / C09-02）。
+         * NaN / 未来ズレは "-" にフォールバック。
+         * @param {number} ts - UNIX ms
+         */
+        formatDate(ts) {
+          if (!Number.isFinite(ts)) return "-";
+          const d = new Date(ts);
+          if (Number.isNaN(d.getTime())) return "-";
+          const pad = (n) => (n < 10 ? "0" + n : "" + n);
+          const nowYear = new Date().getFullYear();
+          const y = d.getFullYear();
+          const mdhm = (d.getMonth() + 1) + "/" + d.getDate() +
+            " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+          return y === nowYear ? mdhm : (y % 100) + "/" + mdhm;
+        },
+
+        /**
+         * セッション配列を集計する。C06-13 mutation 禁止契約を守り、slice / filter で新配列を作る。
+         * - sortedDesc: ResultHelpers.isValidSession を通過したセッションを timestamp 降順で
+         * - cellStats[key]: **直近 N セッション**の (dan,m) 別 { attempts, correct, wrong, correctRate }
+         *                   SPEC §3.3 proficiencyLevel の入力としてこれを使う
+         * - danStats[dan]: **全セッション**の段別 { attempts, correct } (全体傾向把握用)
+         * @param {SessionResult[]} sessions
+         */
+        aggregate(sessions) {
+          const valid = (Array.isArray(sessions) ? sessions : []).filter(ResultHelpers.isValidSession);
+          const sortedDesc = valid.slice().sort(function (a, b) { return b.timestamp - a.timestamp; });
+          const recent = sortedDesc.slice(0, STATS_RECENT_N);
+
+          const cellStats = {};
+          for (let dan = 1; dan <= 9; dan++) {
+            for (let m = 1; m <= 9; m++) {
+              cellStats[dan + "-" + m] = { attempts: 0, correct: 0, wrong: 0, correctRate: 0 };
+            }
+          }
+          for (let si = 0; si < recent.length; si++) {
+            const details = Array.isArray(recent[si].details) ? recent[si].details : [];
+            for (let di = 0; di < details.length; di++) {
+              const d = details[di];
+              if (!d || !Number.isInteger(d.dan) || !Number.isInteger(d.multiplier)) continue;
+              if (d.dan < 1 || d.dan > 9 || d.multiplier < 1 || d.multiplier > 9) continue;
+              const cs = cellStats[d.dan + "-" + d.multiplier];
+              cs.attempts++;
+              if (d.isCorrect === true) cs.correct++;
+              else cs.wrong++;
+            }
+          }
+          Object.keys(cellStats).forEach(function (k) {
+            const cs = cellStats[k];
+            cs.correctRate = cs.attempts > 0 ? cs.correct / cs.attempts : 0;
+          });
+
+          const danStats = {};
+          for (let dan = 1; dan <= 9; dan++) danStats[dan] = { attempts: 0, correct: 0 };
+          for (let si = 0; si < valid.length; si++) {
+            const details = Array.isArray(valid[si].details) ? valid[si].details : [];
+            for (let di = 0; di < details.length; di++) {
+              const d = details[di];
+              if (!d || !Number.isInteger(d.dan)) continue;
+              if (d.dan < 1 || d.dan > 9) continue;
+              danStats[d.dan].attempts++;
+              if (d.isCorrect === true) danStats[d.dan].correct++;
+            }
+          }
+
+          return { sortedDesc, cellStats, danStats };
+        },
+      };
+
+      /**
+       * 成績画面。
+       * - タブ切替で「れきし / だんべつ / マップ / にがて」を出し分け
+       * - 習熟度マップ (9×9) は SPEC §3.3 の 5 段階 (L0〜L4) で塗り分け、タップで詳細カードを表示
+       * - 履歴 0 件時はタブによらず優しく案内する
+       * - 「もどる」は push 遷移 (SPEC §4.1)。結果画面のような replace は不要。
+       */
+      function StatsScreen() {
+        const { account } = useContext(AppContext);
+        const [tab, setTab] = useState("history");
+        const [selectedCell, setSelectedCell] = useState(null);
+        const detailRef = useRef(null);
+
+        const accountId = account ? account.id : null;
+
+        // React Hooks は条件分岐より前に呼ぶ。account 未確定時は空値を返すだけで副作用なし。
+        const weights = useMemo(
+          function () { return accountId ? Storage.loadWeights(accountId) : {}; },
+          [accountId]
+        );
+        const sessions = useMemo(
+          function () { return accountId ? Storage.loadSessions(accountId) : []; },
+          [accountId]
+        );
+        const agg = useMemo(function () { return StatsHelpers.aggregate(sessions); }, [sessions]);
+
+        // 苦手問題ワースト 5: 現在の重み (WeightMap) を降順ソートして上位 5 件。
+        // 下限 0.5〜デフォルト 1.0 は「まだ取り組んでいない / 得意」であり「苦手」ではないため除外する (C09-09)。
+        // これにより新規アカウントや全段未練習時に sort 安定性で 1×1〜1×5 が辞書順固定表示される問題を回避。
+        const weakTop5 = useMemo(function () {
+          const entries = [];
+          for (let dan = 1; dan <= 9; dan++) {
+            for (let m = 1; m <= 9; m++) {
+              const key = dan + "-" + m;
+              const w = typeof weights[key] === "number" ? weights[key] : 1.0;
+              if (w <= 1.0) continue;
+              entries.push({ dan: dan, multiplier: m, weight: w, key: key });
+            }
+          }
+          entries.sort(function (a, b) { return b.weight - a.weight; });
+          return entries.slice(0, 5);
+        }, [weights]);
+
+        // StatsScreen は閲覧画面のため push 遷移でよい (SPEC §4.1)。
+        // ResultScreen の replace とは異なり、戻るボタンで #/stats に再入できる UX を許容する (C09-11)。
+        const handleBack = () => { window.location.hash = "#/home"; };
+        const selectTab = (id) => { setTab(id); setSelectedCell(null); };
+
+        // Esc ハンドラが最新の selectedCell を参照するための ref (C10-02)。
+        // useEffect([]) の closure 初回キャプチャで stale 化するのを避ける。
+        const selectedCellRef = useRef(selectedCell);
+        useEffect(() => { selectedCellRef.current = selectedCell; });
+
+        // Esc キーで「もどる」と同等の動作 (Step 9 キーボード操作完全対応)。
+        // IME 合成中の Esc はブラウザが変換キャンセルを優先するため isComposing でガードする。
+        // C10-02: 詳細カード (selectedCell) が開いているときはまずカードを閉じる。画面遷移は最後の手段。
+        //        これにより 9×9 セル (C09-04 Tab 走査) + Esc の組合せでカード閉じ経路が確保される。
+        // C10-09: 将来の子モーダル追加に備え、ModalStack が積まれているときは window レベルで発火させない。
+        // C10-08: handleBack の参照を持たず window.location を直接書くことで stale closure を構造的に回避する。
+        // C10-10: iOS Safari の日本語 IME では isComposing の立ち上がり/立ち下がりが他ブラウザと異なるケースが
+        //         報告されているため、実機検証 (Step 10 C08-14) で挙動差異を要確認。
+        useEffect(() => {
+          const onKey = (e) => {
+            if (ModalStack.length > 0) return;
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === "Escape") {
+              e.preventDefault();
+              if (selectedCellRef.current) {
+                setSelectedCell(null);
+                return;
+              }
+              window.location.hash = "#/home";
+            }
+          };
+          window.addEventListener("keydown", onKey);
+          return () => window.removeEventListener("keydown", onKey);
+        }, []);
+
+        // セル選択時に詳細カードをビューポート内にスクロール (C09-10)。
+        // 下段セル (9 の段等) タップ時にカードが画面外生成される視覚欠落を防ぐ。
+        useEffect(function () {
+          if (selectedCell && detailRef.current) {
+            detailRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }
+        }, [selectedCell]);
+
+        // App の Navigation Guard が発火するまでの過渡フレームでは account が null になりうる。
+        if (!account) return null;
+
+        const hasData = agg.sortedDesc.length > 0;
+
+        // 選択セルの詳細表示用。splitのコスト低、selectedCell 毎に計算。
+        let detail = null;
+        if (selectedCell) {
+          const parts = selectedCell.split("-");
+          const dDan = Number(parts[0]);
+          const dM = Number(parts[1]);
+          const cs = agg.cellStats[selectedCell];
+          const w = typeof weights[selectedCell] === "number" ? weights[selectedCell] : 1.0;
+          const lvl = Engine.proficiencyLevel(w, cs.correctRate, cs.attempts);
+          detail = { dan: dDan, multiplier: dM, weight: w, cs: cs, level: lvl, meta: PROFICIENCY_META[lvl] };
+        }
+
+        const tabBtnCls = (id) => (
+          tab === id
+            ? "flex-1 min-h-[48px] px-3 py-2 text-base font-bold rounded-xl bg-indigo-600 text-white shadow-md focus:outline-none focus:ring-4 focus:ring-indigo-300"
+            : "flex-1 min-h-[48px] px-3 py-2 text-base font-bold rounded-xl bg-white text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+        );
+
+        return (
+          <main className="min-h-screen px-4 py-6 flex flex-col items-center">
+            <div className="w-full max-w-3xl flex flex-col gap-4">
+              <header className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-4xl leading-none" aria-hidden="true">
+                    {LoginHelpers.avatarOf(account.avatarIndex)}
+                  </span>
+                  <h1 className="text-2xl md:text-3xl font-bold text-indigo-700 truncate">
+                    {account.name}さんの せいせき
+                  </h1>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="shrink-0 min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
+                >
+                  もどる
+                </button>
+              </header>
+
+              {/* タブ: role=tablist + aria-controls / role=tabpanel の紐付けで ARIA tab パターンを満たす (C09-07) */}
+              <nav role="tablist" aria-label="せいせき カテゴリ" className="flex flex-wrap gap-2">
+                <button type="button" role="tab" id="kuku-stats-tab-history" aria-selected={tab === "history"} aria-controls="kuku-stats-panel-history" onClick={() => selectTab("history")} className={tabBtnCls("history")}>
+                  れきし
+                </button>
+                <button type="button" role="tab" id="kuku-stats-tab-dans" aria-selected={tab === "dans"} aria-controls="kuku-stats-panel-dans" onClick={() => selectTab("dans")} className={tabBtnCls("dans")}>
+                  だんべつ
+                </button>
+                <button type="button" role="tab" id="kuku-stats-tab-map" aria-selected={tab === "map"} aria-controls="kuku-stats-panel-map" onClick={() => selectTab("map")} className={tabBtnCls("map")}>
+                  マップ
+                </button>
+                <button type="button" role="tab" id="kuku-stats-tab-weak" aria-selected={tab === "weak"} aria-controls="kuku-stats-panel-weak" onClick={() => selectTab("weak")} className={tabBtnCls("weak")}>
+                  にがて
+                </button>
+              </nav>
+
+              {/* 履歴 0 件のやさしい案内。マップ/にがては「未挑戦」表示で自然に空を表現するため条件外。 */}
+              {!hasData && tab !== "map" && (
+                <section className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-8 text-center">
+                  <p className="text-5xl leading-none" aria-hidden="true">🐣</p>
+                  <p className="mt-3 text-xl text-slate-700">まだ データが ありません</p>
+                  <p className="mt-2 text-base text-slate-500">ホームから 1かい あそんでみよう！</p>
+                </section>
+              )}
+
+              {/* ── れきし ── */}
+              {tab === "history" && hasData && (
+                <section
+                  id="kuku-stats-panel-history"
+                  role="tabpanel"
+                  aria-labelledby="kuku-stats-tab-history"
+                  className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                >
+                  <h2 id="kuku-stats-history-title" className="text-xl font-bold text-slate-700 mb-3">
+                    プレイ りれき <span className="text-sm font-normal text-slate-500">（あたらしい じゅん）</span>
+                  </h2>
+                  <ul className="divide-y divide-slate-200 max-h-[60vh] overflow-y-auto pr-1">
+                    {agg.sortedDesc.map(function (s, i) {
+                      const rate = Math.round((s.correctCount / s.totalQuestions) * 100);
+                      return (
+                        <li
+                          key={s.timestamp + "-" + i}
+                          className="py-3 flex items-center justify-between gap-3"
+                        >
+                          <span className="text-sm text-slate-500 tabular-nums shrink-0 w-24">
+                            {StatsHelpers.formatDate(s.timestamp)}
+                          </span>
+                          <span className="text-base text-slate-700 tabular-nums flex-1 text-center">
+                            {s.correctCount} / {s.totalQuestions} もん
+                          </span>
+                          <span className="text-lg font-bold text-indigo-700 tabular-nums w-16 text-right">
+                            {rate}%
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
+              {/* ── だんべつ せいかいりつ ── */}
+              {tab === "dans" && hasData && (
+                <section
+                  id="kuku-stats-panel-dans"
+                  role="tabpanel"
+                  aria-labelledby="kuku-stats-tab-dans"
+                  className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                >
+                  <h2 id="kuku-stats-dans-title" className="text-xl font-bold text-slate-700 mb-3">
+                    だんべつ せいかいりつ
+                  </h2>
+                  <ul className="flex flex-col gap-3">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (dan) {
+                      const ds = agg.danStats[dan];
+                      const noData = ds.attempts === 0;
+                      const rate = noData ? 0 : Math.round((ds.correct / ds.attempts) * 100);
+                      // SPEC.md Tailwind ルール: 幅は style で渡す (任意値クラスの生成を避ける)
+                      return (
+                        <li key={dan} className="flex items-center gap-3">
+                          <span className="w-16 text-base font-bold text-slate-700 shrink-0">
+                            {dan}の だん
+                          </span>
+                          <div
+                            className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden"
+                            role="img"
+                            aria-label={dan + "のだん せいかいりつ " + (noData ? "データなし" : rate + "パーセント")}
+                          >
+                            <div
+                              className={noData ? "h-full bg-slate-200" : "h-full bg-indigo-500 transition-all"}
+                              style={{ width: noData ? "0%" : rate + "%" }}
+                            />
+                          </div>
+                          <span className="w-24 text-right text-sm text-slate-600 tabular-nums shrink-0">
+                            {noData ? "まだ" : rate + "% (" + ds.attempts + ")"}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
+              {/* ── しゅうじゅくど マップ ── */}
+              {tab === "map" && (
+                <section
+                  id="kuku-stats-panel-map"
+                  role="tabpanel"
+                  aria-labelledby="kuku-stats-tab-map"
+                  className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                >
+                  <h2 id="kuku-stats-map-title" className="text-xl font-bold text-slate-700 mb-1">
+                    しゅうじゅくど マップ
+                  </h2>
+                  <p className="text-sm text-slate-500 mb-3">
+                    さいきんの {STATS_RECENT_N}かいの けっかで いろわけしているよ
+                  </p>
+
+                  {/* 凡例 */}
+                  <ul className="flex flex-wrap gap-x-3 gap-y-2 mb-4 text-xs">
+                    {PROFICIENCY_META.map(function (p, i) {
+                      return (
+                        <li key={i} className="flex items-center gap-1">
+                          <span
+                            className={"inline-block w-4 h-4 rounded border-2 " + p.legendCls}
+                            aria-hidden="true"
+                          />
+                          <span className="text-slate-600">{p.label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {/* 9×9 グリッド: 先頭行 / 先頭列に軸ラベルを置く 10 列レイアウト。
+                      role="grid" は付けない (C09-03): row / rowgroup / gridcell の階層を伴わないため
+                      ARIA grid パターンとして不整合になり、通常のボタン群として扱う方が SR 走査が素直になる。
+                      セルは 48px 以上 (C09-01 / CLAUDE.md タッチターゲット規約) を満たす 3rem 角で描画。 */}
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label="しゅうじゅくど マップ">
+                      <span aria-hidden="true" />
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
+                        return (
+                          <span key={"h-" + m} className="text-xs text-slate-500 text-center font-bold self-center" aria-hidden="true">
+                            ×{m}
+                          </span>
+                        );
+                      })}
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (dan) {
+                        return (
+                          <React.Fragment key={"row-" + dan}>
+                            <span className="text-xs text-slate-500 text-right font-bold self-center pr-1" aria-hidden="true">
+                              {dan}の
+                            </span>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
+                              const key = dan + "-" + m;
+                              const cs = agg.cellStats[key];
+                              const w = typeof weights[key] === "number" ? weights[key] : 1.0;
+                              const level = Engine.proficiencyLevel(w, cs.correctRate, cs.attempts);
+                              const meta = PROFICIENCY_META[level];
+                              const isSel = selectedCell === key;
+                              // cellCls は静的文字列から完全に構成されているので Tailwind 抽出 OK。
+                              // min-w / min-h 3rem = 48px で CLAUDE.md タッチターゲット規約に準拠 (C09-01)。
+                              const cls = isSel
+                                ? "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-sm font-bold border-2 ring-4 ring-indigo-400 focus:outline-none transition-colors tabular-nums " + meta.cellCls
+                                : "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-sm font-bold border-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors tabular-nums " + meta.cellCls;
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setSelectedCell(isSel ? null : key)}
+                                  aria-label={dan + "かける" + m + "は" + (dan * m) + "、" + meta.label}
+                                  aria-pressed={isSel}
+                                  className={cls}
+                                >
+                                  {dan * m}
+                                </button>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* セル詳細カード (タップで開閉)。
+                      role="region" を外し aria-live のみに留めることで SR の冗長読み上げを回避 (C09-05)。
+                      選択変化時に scrollIntoView で可視領域へ寄せる (C09-10 useEffect 参照)。 */}
+                  {detail && (
+                    <div
+                      ref={detailRef}
+                      className="mt-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-200"
+                      aria-live="polite"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-2xl font-bold text-indigo-700 tabular-nums">
+                          {detail.dan} × {detail.multiplier} = {detail.dan * detail.multiplier}
+                        </span>
+                        <span className={"text-xs font-bold px-3 py-1 rounded-full border-2 " + detail.meta.legendCls}>
+                          {detail.meta.label}
+                        </span>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                        <div className="bg-white rounded-xl p-2 text-center">
+                          <dt className="text-slate-500">おもさ</dt>
+                          <dd className="text-lg font-bold text-slate-800 tabular-nums">{detail.weight.toFixed(1)}</dd>
+                        </div>
+                        <div className="bg-white rounded-xl p-2 text-center">
+                          <dt className="text-slate-500">せいかい</dt>
+                          <dd className="text-lg font-bold text-green-700 tabular-nums">{detail.cs.correct}かい</dd>
+                        </div>
+                        <div className="bg-white rounded-xl p-2 text-center">
+                          <dt className="text-slate-500">まちがい</dt>
+                          <dd className="text-lg font-bold text-rose-700 tabular-nums">{detail.cs.wrong}かい</dd>
+                        </div>
+                      </dl>
+                      {detail.cs.attempts === 0 && (
+                        <p className="mt-2 text-sm text-slate-500">この もんだいは さいきんの {STATS_RECENT_N}かいでは まだ でていないよ</p>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ── にがて ワースト 5 ── */}
+              {tab === "weak" && hasData && (
+                <section
+                  id="kuku-stats-panel-weak"
+                  role="tabpanel"
+                  aria-labelledby="kuku-stats-tab-weak"
+                  className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                >
+                  <h2 id="kuku-stats-weak-title" className="text-xl font-bold text-slate-700 mb-1">
+                    にがて ワースト 5
+                  </h2>
+                  {weakTop5.length === 0 ? (
+                    // weight > 1.0 のエントリが 1 件も無い = まだ苦手問題が顕在化していない状態 (C09-09)
+                    <p className="mt-2 text-base text-slate-700">
+                      まだ にがてな もんだいは ないよ！<br />この ちょうしで がんばろう！
+                    </p>
+                  ) : (<>
+                  <p className="text-sm text-slate-500 mb-3">いっしょに がんばろう！</p>
+                  <ul className="flex flex-col gap-2">
+                    {weakTop5.map(function (item, i) {
+                      const cs = agg.cellStats[item.key];
+                      return (
+                        <li
+                          key={item.key}
+                          className="flex items-center gap-3 p-3 bg-white rounded-xl border-2 border-rose-200"
+                        >
+                          <span className="text-xl font-bold text-rose-600 tabular-nums w-8 text-center shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="text-2xl font-bold text-slate-800 tabular-nums flex-1">
+                            {item.dan} × {item.multiplier} = {item.dan * item.multiplier}
+                          </span>
+                          <span className="text-xs text-slate-600 text-right shrink-0 leading-tight">
+                            <span className="block">
+                              おもさ{" "}
+                              <span className="text-base font-bold text-rose-700 tabular-nums">
+                                {item.weight.toFixed(1)}
+                              </span>
+                            </span>
+                            <span className="block">
+                              {cs.attempts > 0
+                                ? "せいかい " + cs.correct + "/" + cs.attempts
+                                : "まだ データなし"}
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  </>)}
+                </section>
+              )}
+            </div>
+          </main>
+        );
+      }
+
+      // ── screens: WelcomeNotice ───────────────────────────────────
+      // 初回起動時のデータ消失注意 (prompts.md Step 9)。kuku_welcomed が未書き込みの
+      // ユーザーにだけ一度だけ表示する。プライベートブラウズではそもそも保存できないので
+      // Storage.isFirstLaunch が false を返し、このモーダルは出ない (毎回出るのを避けるため)。
+      function WelcomeNotice({ onDismiss }) {
+        const modalRef = useRef(null);
+        // 自動で開くモーダルなのでトリガ要素がない。autoFocus が commit 中に activeElement を
+        // モーダル内ボタンへ移してしまうため、ここで前フォーカス捕捉を試みても意味がない。
+        // 閉じたら body に戻り、ユーザは LoginScreen 内を tab で辿れるので実害なし。
+        useModalFocusTrap(modalRef, onDismiss, null);
+
+        return (
+          <div
+            ref={modalRef}
+            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kuku-welcome-title"
+            aria-describedby="kuku-welcome-desc"
+          >
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 text-center">
+              <div className="text-6xl leading-none" aria-hidden="true">🐱</div>
+              <h2 id="kuku-welcome-title" className="mt-3 text-2xl font-bold text-indigo-700">
+                くくどうじょうへ ようこそ！
+              </h2>
+              <p id="kuku-welcome-desc" className="mt-4 text-base text-slate-700 leading-relaxed">
+                せいせきは この ブラウザに ほぞんされるよ。<br />
+                ブラウザの おそうじや ひみつモードで あそぶと、<br />
+                せいせきが きえることが あるから ちゅういしてね。
+              </p>
+              <button
+                type="button"
+                onClick={onDismiss}
+                autoFocus
+                className="w-full mt-6 min-h-[56px] px-4 py-3 bg-indigo-600 text-white text-xl font-bold rounded-2xl shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
+              >
+                わかったよ
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── app (routing) ─────────────────────────────────────────────
+      // 保護されたルート: account が null のときに #/login に差し戻す対象
+      const PROTECTED_ROUTES = ["#/home", "#/quiz", "#/result", "#/stats"];
+
+      function App() {
+        const hash = useHash();
+        const [accounts, setAccounts] = useState(() => Storage.loadAccounts());
+        const [currentAccountId, setCurrentAccountId] = useState(() => Storage.loadCurrentAccountId());
+        const [storageWarning, setStorageWarning] = useState(null);
+        // 初回起動案内。checkAvailability は useEffect 内で走るため、初期値は false に固定し
+        // useEffect 側で isFirstLaunch を評価してから開く (Step 9 / prompts.md)。
+        const [showWelcome, setShowWelcome] = useState(false);
+        // quiz 設定 (段選択・問題数) はセッション跨ぎで保持しない。初期値は SPEC.md §2.3 のデフォルト。
+        const [selectedDans, setSelectedDans] = useState(() => [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        const [totalQuestions, setTotalQuestions] = useState(27);
+        const [settings, setSettings] = useState(() => {
+          const id = Storage.loadCurrentAccountId();
+          return id ? Storage.loadSettings(id) : { ...DEFAULT_SETTINGS };
+        });
+
+        const account = useMemo(
+          () => accounts.find((a) => a.id === currentAccountId) || null,
+          [accounts, currentAccountId]
+        );
+
+        // アカウント切替時に設定を再読込。削除直後 (currentAccountId===null) はデフォルトに戻す。
+        useEffect(() => {
+          if (currentAccountId) {
+            setSettings(Storage.loadSettings(currentAccountId));
+          } else {
+            setSettings({ ...DEFAULT_SETTINGS });
+          }
+        }, [currentAccountId]);
+
+        // Step 7: SoundPlayer は React 外にある singleton のため、settings 変化時に明示同期する。
+        // soundEnabled === false で playCorrect/Wrong/Fanfare が即 return する契約の前提 (prompts.md Step 7)。
+        // 初期 mount / アカウント切替 / Settings モーダル操作のすべてで追従する。
+        useEffect(() => {
+          SoundPlayer.setSettings(settings);
+        }, [settings]);
+
+        // Navigation guard: 保護ルートで account が無ければ #/login に差し戻す。
+        // LoginScreen 直接のリロード対策 + アカウント削除直後に #/home 履歴が残っているケースを補正。
+        useEffect(() => {
+          if (PROTECTED_ROUTES.indexOf(hash) !== -1 && !account) {
+            window.location.replace("#/login");
+          }
+        }, [hash, account]);
+
+        const ctxValue = useMemo(
+          () => ({
+            accounts,
+            account,
+            settings,
+            selectedDans,
+            totalQuestions,
+            setSelectedDans,
+            setTotalQuestions,
+            // オブジェクト or 関数型 setter の両方を受ける (C05-06)。
+            // 関数型の場合は `prev` を受けて新しい settings を返す。
+            updateSettings: (updater) => {
+              setSettings((prev) => {
+                const next = typeof updater === "function" ? updater(prev) : updater;
+                if (currentAccountId) Storage.saveSettings(currentAccountId, next);
+                return next;
+              });
+            },
+            // accounts の closure が stale になる余地を塞ぐため関数型 setter を使う (C05-16)。
+            createAccount: (name, avatarIndex) => {
+              const newAccount = {
+                id: Util.uuid(),
+                name,
+                avatarIndex,
+                createdAt: Date.now(),
+              };
+              // accounts 更新と独立した weights / settings 永続化は先に実行 (C04-04)。
+              Storage.saveWeights(newAccount.id, Engine.initialWeights());
+              Storage.saveSettings(newAccount.id, { ...DEFAULT_SETTINGS });
+              setAccounts((prev) => {
+                const next = prev.concat(newAccount);
+                Storage.saveAccounts(next);
+                return next;
+              });
+              return newAccount;
+            },
+            login: (id) => {
+              // 失敗は Storage._onStorageError 経由のバナー通知で可視化。遷移は継続 (C04-05)。
+              Storage.saveCurrentAccountId(id);
+              setCurrentAccountId(id);
+            },
+            logout: () => {
+              Storage.saveCurrentAccountId(null);
+              setCurrentAccountId(null);
+            },
+            removeAccount: () => {
+              if (!currentAccountId) return;
+              Storage.deleteAccount(currentAccountId);
+              setCurrentAccountId(null);
+              setAccounts(Storage.loadAccounts());
+            },
+          }),
+          // `account` は `accounts` / `currentAccountId` から導出されるため deps には含めない (C05-07)。
+          // 両者の変化時に自動で ctxValue が再生成され、`account` 参照も新値に追従する。
+          [accounts, settings, selectedDans, totalQuestions, currentAccountId]
+        );
+
+        useEffect(() => {
+          // ストレージエラーハンドラ登録 (SPEC.md §2.4)
+          Storage._onStorageError = (msg) => setStorageWarning(msg);
+
+          // プライベートブラウズ検出
+          Storage.checkAvailability();
+
+          // 初回起動の案内 (Step 9 / prompts.md)。checkAvailability 後に評価する。
+          // プライベートブラウズ時は isFirstLaunch が false を返すため、案内は出さない。
+          if (Storage.isFirstLaunch()) setShowWelcome(true);
+
+          // SPEC §5.2: 最初のユーザー操作で AudioContext.resume() を呼ぶ。
+          // LoginScreen の特定ハンドラではなく document level の once リスナで拾うことで、
+          // 新規作成フローの「あたらしくつくる」タップ (C04-01) も Escape (C04-12) も包括対応。
+          // async 関数の Promise 拒否は .catch で握り潰し、Step 7 退行を console.warn で可視化 (C04-02)。
+          const firstGesture = () => {
+            document.removeEventListener("pointerdown", firstGesture, true);
+            document.removeEventListener("keydown", firstGesture, true);
+            try {
+              const p = SoundPlayer.ensureAudioContext();
+              if (p && typeof p.catch === "function") {
+                p.catch(function (err) {
+                  console.warn("[kuku-dojo] audio: ensureAudioContext rejected:", err && err.message);
+                });
+              }
+            } catch (e) {
+              console.warn("[kuku-dojo] audio: ensureAudioContext threw:", e.message);
+            }
+          };
+          document.addEventListener("pointerdown", firstGesture, true);
+          document.addEventListener("keydown", firstGesture, true);
+
+          // C08-01: タブ復帰 / BFCache 復元で AudioContext が interrupted 相当になっている可能性に備え、
+          //        次の play 前に ensureAudioContext を走らせ直すため _resumed を落とす。
+          //        実際の再生成は次のユーザージェスチャ or ResultScreen の ensureAudioContext 先行呼び出しで行う。
+          const onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+              SoundPlayer.invalidate();
+            }
+          };
+          const onPageShow = (e) => {
+            if (e.persisted) SoundPlayer.invalidate();
+          };
+          document.addEventListener("visibilitychange", onVisibilityChange);
+          window.addEventListener("pageshow", onPageShow);
+
+          // 起動完了マーク: 2 指標を同時に出す (C01-02 / SPEC.md §6.1.1)
+          //   total : navigationStart → App mount の総合時間 (HTML/CDN ダウンロード + Babel + React 含む)
+          //   js    : <script type="text/babel"> 先頭 → App mount (Babel 変換 + 初回レンダのみ)
+          // SPEC.md §6.1 の「起動 5 秒以内」目標は total を指す。js は退行の原因切り分け用。
+          performance.mark("kuku-app-mounted");
+          const totalMs = Math.round(performance.now());
+          let jsMs = null;
+          try {
+            performance.measure("kuku-startup-js", "kuku-app-script-start", "kuku-app-mounted");
+            const m = performance.getEntriesByName("kuku-startup-js").pop();
+            if (m) jsMs = Math.round(m.duration);
+          } catch (e) {
+            // 古いブラウザで measure が使えなくても無害
+          }
+          console.info(
+            "[kuku-dojo] startup:",
+            "total=" + totalMs + "ms",
+            jsMs !== null ? "js=" + jsMs + "ms" : ""
+          );
+
+          return () => {
+            Storage._onStorageError = null;
+            document.removeEventListener("pointerdown", firstGesture, true);
+            document.removeEventListener("keydown", firstGesture, true);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            window.removeEventListener("pageshow", onPageShow);
+          };
+        }, []);
+
+        // C10-12: storageWarning バナーも Esc で閉じられるようにする (他モーダル・画面との一貫性確保)。
+        //        screen レベル Esc listener (StatsScreen / ResultScreen / QuizScreen openPause) が先に
+        //        e.preventDefault() を呼んだ場合はこちらはスキップして二重動作を避ける。
+        //        ModalStack が積まれているときは最上位モーダルの Esc を尊重する。
+        useEffect(() => {
+          if (!storageWarning) return;
+          const onKey = (e) => {
+            if (e.defaultPrevented) return;
+            if (ModalStack.length > 0) return;
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === "Escape") {
+              setStorageWarning(null);
+            }
+          };
+          window.addEventListener("keydown", onKey);
+          return () => window.removeEventListener("keydown", onKey);
+        }, [storageWarning]);
+
+        // 保護ルートで account が無い過渡フレームは LoginScreen にフォールバック (useEffect の replace 前)。
+        const needsAccount = PROTECTED_ROUTES.indexOf(hash) !== -1;
+        let screen;
+        if (needsAccount && !account) {
+          screen = <LoginScreen />;
+        } else {
+          switch (hash) {
+            case "#/login":  screen = <LoginScreen />; break;
+            case "#/home":   screen = <HomeScreen />; break;
+            case "#/quiz":   screen = <QuizScreen />; break;
+            case "#/result": screen = <ResultScreen />; break;
+            case "#/stats":  screen = <StatsScreen />; break;
+            default:
+              // 不明ハッシュは #/login に差し戻す (SPEC.md §4.1)
+              window.location.replace("#/login");
+              screen = <LoginScreen />;
+          }
+        }
+
+        const dismissWelcome = () => {
+          // C10-11: 書き込み失敗 (Storage._available=false / Quota) でも UI はモーダルを閉じる。
+          //        永続化失敗自体は Storage._onStorageError 経由の storageWarning バナーで可視化されるため
+          //        「わかったよ」のクリック応答自体は子供に即座にフィードバックする。
+          Storage.markLaunched();
+          setShowWelcome(false);
+        };
+
+        return (
+          <AppContext.Provider value={ctxValue}>
+            {storageWarning && (
+              // C10-06: z-[60] でモーダル層 (z-50) より上位に配置する。データ永続化エラーは
+              //        モーダル操作より優先度が高い通知のため、全モーダルに被らせて可視化する。
+              //        z-[60] は Tailwind の任意値クラスとして静的リテラルで確保される (CLAUDE.md ルール)。
+              <div className="fixed top-0 left-0 right-0 bg-amber-100 text-amber-800 z-[60] flex items-center justify-center gap-3 px-3 py-2">
+                <span className="text-base">{storageWarning}</span>
+                {/* 閉じるボタン: 48px タッチターゲットを確保 (C05-13 / CLAUDE.md 48px ルール) */}
+                <button
+                  type="button"
+                  onClick={() => setStorageWarning(null)}
+                  aria-label="おしらせを とじる"
+                  className="min-h-[48px] min-w-[48px] text-amber-900 text-2xl font-bold hover:bg-amber-200 rounded-lg focus:outline-none focus:ring-4 focus:ring-amber-300"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+            )}
+            {screen}
+            {showWelcome && <WelcomeNotice onDismiss={dismissWelcome} />}
+          </AppContext.Provider>
+        );
+      }
+
+      // ── mount ─────────────────────────────────────────────────────
+      const rootEl = document.getElementById("root");
+      if (!rootEl) {
+        // ここに来る時点でテンプレート破損。最低限のエラーを素の HTML で出す (C01-10)
+        document.body.innerHTML =
+          '<main style="padding:2rem;font-family:sans-serif">エラー: #root がみつかりません</main>';
+      } else {
+        ReactDOM.createRoot(rootEl).render(<App />);
+      }
+    </script>
+  </body>
+</html>

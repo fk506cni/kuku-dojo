@@ -1,0 +1,17 @@
+{
+  "name": "kuku-dojo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-dist.mjs"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/cli": "^7.24.0",
+    "@babel/preset-react": "^7.24.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwindcss": "^3.4.0"
+  }
+}
