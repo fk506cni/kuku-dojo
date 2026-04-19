@@ -1,0 +1,12 @@
+# kuku-dojo 寄付チャネル設定
+# 参照: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# GitHub Sponsors (https://github.com/sponsors/fk506cni)
+github: [fk506cni]
+
+# Buy Me a Coffee (https://buymeacoffee.com/fk506cni)
+buy_me_a_coffee: fk506cni
+
+# OFUSE はネイティブキー未対応のため custom URL として追加
+custom:
+  - https://ofuse.me/fk506cni
