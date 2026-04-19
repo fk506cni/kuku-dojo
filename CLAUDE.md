@@ -16,6 +16,43 @@
 
 ドキュメントを新規作成する場合は上記の原則に従うこと。
 
+## 🚨 v1.0.0 以降の公開運用ルール（最重要）
+
+本レポジトリは 2026-04-19 に v1.0.0 として GitHub で **public 公開済み** (`https://github.com/fk506cni/kuku-dojo`)。以下は公開後の継続開発で必ず守ること。
+
+### 1. コミットメールは GitHub noreply のみ
+
+- 本レポジトリは `git config --local user.email="36837418+fk506cni@users.noreply.github.com"` を設定済み。触らない
+- 実メール（`git config --global user.email` の値）は本レポジトリ内のファイル・新規 commit に一切含めない。具体的なアドレスはここに記載しない（漏洩防止）
+- GitHub Settings → Emails の「Block command line pushes that expose my email」も有効化済み（二重防御）
+
+### 2. main への force-push は封印
+
+- v1.0.0 公開前に履歴初期化のため実施したが、以降は禁止
+- 通常の `git push origin main`（fast-forward）のみ使用
+- 例外: GitHub Support への dangling commits 削除依頼完了後の再初期化が必要な場合のみ、本人判断
+
+### 3. gitignored だが公開しないファイル群
+
+以下は `.gitignore` 登録済みで origin には push されない。`-f` でも push しないこと:
+
+- `NOTES.md`（作者私的な開発メモ、次のセッション起動時の参照材料）
+- `message.md` / `drafts/` / `jank/` / `refs/` / `__archives/`
+- `docs/__archives/` / `docs/start*.md`（敵対的レビュー資材 / セッション開始プロンプト）
+- `scripts/commit-push.sh` / `scripts/archive_message.sh` / `scripts/backup.sh` / `scripts/stage-add.md`
+- `node_modules/` / `dist/` / `dist-tmp/`
+
+### 4. 敵対的レビューは `docs/__archives/report*.md` に蓄積
+
+セッション開始プロンプト (`docs/start*.md`) / レビュー報告書 (`docs/report*.md`) は旧セッションごとに `docs/__archives/` に退避する運用。これらは gitignored なので origin には出ない。次回以降の Claude セッションでは `NOTES.md` と SPEC.md / CLAUDE.md / prompts.md を先に読めばよい。
+
+### 5. バージョニング (SPEC.md §7.5)
+
+- パッチ (`v1.0.x`): typo / 小バグ修正 / 実機検証の逐次消化
+- マイナー (`v1.y.0`): 後方互換の機能追加（例: F1 回答時間 = v1.1.0 / F2 多言語 = v1.2.0）
+- メジャー (`v2.0.0`): 破壊的変更（Settings 非互換マイグレーション等）
+- `package.json` の version を single source of truth に、`scripts/build-dist.mjs` が自動参照する設計
+
 ## Quick Reference
 
 ### 配布形態

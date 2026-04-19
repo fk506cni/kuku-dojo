@@ -204,6 +204,19 @@ npm run build              # → dist/kuku-dojo.html を生成
 
 ---
 
+## 🗓️ ロードマップ
+
+v1.0.0 公開後の予定（優先度順、詳細は [SPEC.md §8](SPEC.md) 参照）:
+
+- **v1.0.x パッチ**: macOS Safari / iPadOS Safari / Firefox / Android タブレット等の実機検証を順次反映
+- **v1.1.0**: 回答時間による苦手検出（正解でも遅い問題を「時間苦手」として扱う、SPEC.md §8.8）
+- **v1.2.0**: 多言語対応（`navigator.language` による自動判定、当初は日英中韓越の 5 言語を想定、SPEC.md §8.9）
+- **その他**: 時間減衰 / 全網羅モード / データエクスポート（SPEC.md §8）
+
+要望・フィードバックは [Issues](../../issues) へお気軽にどうぞ。
+
+---
+
 ## 🤝 貢献・フィードバック
 
 - バグ報告・要望は [Issues](../../issues) へ

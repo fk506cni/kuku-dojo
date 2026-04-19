@@ -18,6 +18,9 @@ drafts/
 # --- 開発用メッセージファイル ---
 message.md
 
+# --- 作者私的な開発メモ (継続開発時のローカル運用マニュアル) ---
+NOTES.md
+
 # --- 開発用ヘルパスクリプト (本レポジトリ特化、公開対象外) ---
 scripts/commit-push.sh
 scripts/archive_message.sh
