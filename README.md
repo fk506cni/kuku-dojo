@@ -215,8 +215,11 @@ npm run build              # → dist/kuku-dojo.html を生成
 kuku-dojo は個人開発のオフラインアプリで、MIT ライセンスで自由に使えます。
 気に入っていただけたら応援 1 杯分のコーヒー代をいただけると嬉しいです（任意です）。
 
-- [GitHub Sponsors](../../..) — 継続的なサポート
-- 他の寄付チャネルはリポジトリ右上の **Sponsor** ボタン（[`.github/FUNDING.yml`](.github/FUNDING.yml)）から
+- 💖 [GitHub Sponsors](https://github.com/sponsors/fk506cni) — 継続的なサポート
+- ☕ [Buy Me a Coffee](https://buymeacoffee.com/fk506cni) — 単発の応援
+- 🎁 [OFUSE](https://ofuse.me/fk506cni) — お布施（日本発のサービス、文章付きで送れます）
+
+リポジトリ右上の **Sponsor** ボタンからもまとめて一覧できます（[`.github/FUNDING.yml`](.github/FUNDING.yml)）。
 
 バグ報告や「こどもがこう使っていた」というフィードバックも大歓迎です。
 
