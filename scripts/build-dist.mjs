@@ -12,7 +12,8 @@
  *   4. node_modules の React / ReactDOM production min を読み込む
  *   5. index.html から CDN <script> を除去し、上記 3 つをインライン埋め込み
  *   6. Step 9 で決定した CSP meta (SPEC.md §7.2.2) を追加
- *   7. dist/kuku-dojo.html に書き出し、ファイルサイズを表示 (目標 < 500KB)
+ *   7. dist/kuku-dojo.html に書き出し、ファイルサイズを表示
+ *      (SPEC §7.4: 非圧縮 3 MB 未満 HARD FAIL / 1 MB 以上で WARN。第13回 C13-01 で v1.0.x 更新)
  *
  * 参照: SPEC.md §7.2 ビルドパイプライン / §7.2.1 Tailwind --content 制約 / §7.2.2 CSP
  */
@@ -37,7 +38,11 @@ const TAILWIND_BIN = resolve(
   "node_modules/.bin",
   process.platform === "win32" ? "tailwindcss.cmd" : "tailwindcss"
 );
-const SIZE_BUDGET = 500 * 1024;
+// SPEC §7.4 (第12回 C12-20 / C12-23 + 第13回 C13-01 を受け v1.0.x で更新): 非圧縮 3 MB 未満
+// = HARD FAIL 閾値。1 MB は zip 同梱時の「警告しきい値」として WARN_BUDGET で併記。
+// F2 Phase D 8 言語フル実装 +80〜100 KB / source map inline +30〜40% を吸収できる余裕枠。
+const SIZE_BUDGET = 3 * 1024 * 1024;
+const WARN_BUDGET = 1 * 1024 * 1024;
 // C11-07: VERSION は package.json を single source of truth として参照する。
 // リテラル二重管理 (build-dist.mjs / package.json) によるドリフトを避ける。
 const pkg = JSON.parse(readFileSync(PACKAGE_JSON, "utf8"));
@@ -222,11 +227,15 @@ const size = statSync(OUT_HTML).size;
 const sizeKb = size / 1024;
 log(`生成: ${OUT_HTML}`);
 log(`ファイルサイズ: ${size.toLocaleString()} bytes (${sizeKb.toFixed(1)} KB)`);
-log(`予算:        ${SIZE_BUDGET.toLocaleString()} bytes (${(SIZE_BUDGET / 1024).toFixed(0)} KB)`);
+log(`警告しきい値 (zip 同梱目安 1 MB): ${WARN_BUDGET.toLocaleString()} bytes (${(WARN_BUDGET / 1024).toFixed(0)} KB)`);
+log(`FAIL 閾値 (非圧縮 3 MB):          ${SIZE_BUDGET.toLocaleString()} bytes (${(SIZE_BUDGET / 1024).toFixed(0)} KB)`);
 
 if (size >= SIZE_BUDGET) {
-  console.error(`[build] ERROR: ファイルサイズが目標 ${(SIZE_BUDGET / 1024).toFixed(0)}KB を超えました`);
+  console.error(`[build] ERROR: ファイルサイズが FAIL 閾値 ${(SIZE_BUDGET / 1024).toFixed(0)}KB を超えました (SPEC §7.4)`);
   process.exit(1);
+}
+if (size >= WARN_BUDGET) {
+  console.warn(`[build] WARN: ファイルサイズが zip 同梱目安 ${(WARN_BUDGET / 1024).toFixed(0)}KB を超えています (SPEC §7.4)`);
 }
 
 // ── 7. 仕上げ smoke test: 配布物に外部 URL が残っていないこと ──────

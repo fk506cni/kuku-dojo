@@ -70,8 +70,7 @@ kuku-dojo/
 ├── README.md                            # 本ファイル
 ├── prompts.md                           # ステップ実装用プロンプト集
 └── docs/
-    ├── 九九練習アプリ_要件定義書.md       # 元要件
-    ├── startNN.md / reportNN.md         # 敵対的レビュー記録
+    ├── startNN.md / reportNN.md         # 敵対的レビュー記録（gitignored）
     └── __archives/                      # 過去版（gitignored）
 ```
 
@@ -208,9 +207,9 @@ npm run build              # → dist/kuku-dojo.html を生成
 
 v1.0.0 公開後の予定（優先度順、詳細は [SPEC.md §8](SPEC.md) 参照）:
 
-- **v1.0.x パッチ**: macOS Safari / iPadOS Safari / Firefox / Android タブレット等の実機検証を順次反映
-- **v1.1.0**: 回答時間による苦手検出（正解でも遅い問題を「時間苦手」として扱う、SPEC.md §8.8）
-- **v1.2.0**: 多言語対応（`navigator.language` による自動判定、当初は日英中韓越の 5 言語を想定、SPEC.md §8.9）
+- **v1.0.x パッチ**: macOS Safari / iPadOS Safari / Firefox / Android タブレット等の実機検証を順次反映 + 配布物サイズ予算の見直し（500 KB → 1 MB zip）
+- **v1.1.0**: 回答時間の可視化と「じかんもくひょう」機能（Stats 画面に「がんばった きろく」タブを追加し、最近 5 回の所要時間や『じかんもくひょう』4 段プリセット 5〜15 秒（のんびり / ふつう / きびきび / たつじん）を選べるように。適応アルゴリズム本体は変えない、SPEC.md §8.8）。**「たつじん 5 秒」はお子さん自身が選ぶ前提のチャレンジ枠で、到達時は可視化のみ・未達でもペナルティは発生しません**（保護者による押し付け防止の設計配慮）
+- **v1.2.0**: 多言語対応（`navigator.language` による自動判定、当初は日英中（簡体・繁体）韓越の 6 言語から着手し需要次第で es / pt-BR を追加、SPEC.md §8.9）
 - **その他**: 時間減衰 / 全網羅モード / データエクスポート（SPEC.md §8）
 
 要望・フィードバックは [Issues](../../issues) へお気軽にどうぞ。

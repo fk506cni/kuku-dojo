@@ -38,8 +38,11 @@
 
 - `NOTES.md`（作者私的な開発メモ、次のセッション起動時の参照材料）
 - `message.md` / `drafts/` / `jank/` / `refs/` / `__archives/`
-- `docs/__archives/` / `docs/start*.md`（敵対的レビュー資材 / セッション開始プロンプト）
+- `docs/__archives/` / `docs/start*.md` / `docs/report*.md`（敵対的レビュー資材 / セッション開始プロンプト / レビュー報告書）
+- `docs/publication_manual.md`（公開作業用マニュアル、著者の個人手順）
+- `docs/九九練習アプリ_要件定義書.md`（元要件定義、旧称のまま残っているローカル参照資料）
 - `scripts/commit-push.sh` / `scripts/archive_message.sh` / `scripts/backup.sh` / `scripts/stage-add.md`
+- `scripts/upload_to_gdrive.sh`（著者個人の Google Drive アップロード、rclone remote 設定が個人依存）
 - `node_modules/` / `dist/` / `dist-tmp/`
 
 ### 4. 敵対的レビューは `docs/__archives/report*.md` に蓄積
@@ -104,14 +107,14 @@ kuku-dojo/
 ├── index.html               # アプリ本体（単一ファイル、開発版）
 ├── package.json             # Node 依存とビルドコマンド
 ├── dist/kuku-dojo.html      # 配布版（ビルドで生成、gitignored）
-├── docs/
-│   └── 九九練習アプリ_要件定義書.md   # 元要件
+├── docs/                    # 敵対的レビュー資材は全て gitignored (start*.md / report*.md / __archives/)
 └── scripts/
     ├── build-dist.mjs       # 配布版ビルドスクリプト
     ├── create_package.sh    # リリースパッケージ作成
-    ├── measure_startup.sh   # 起動時間計測
-    └── upload_to_gdrive.sh  # Google Drive アップロード (任意)
+    └── measure_startup.sh   # 起動時間計測
 ```
+
+> ローカルには `docs/九九練習アプリ_要件定義書.md`（元要件、gitignored）、`scripts/upload_to_gdrive.sh`（著者個人の rclone 連携、gitignored）等が存在する場合がある。いずれも公開レポジトリには含まれない。
 
 ## Development Guidelines
 
@@ -188,6 +191,18 @@ kuku-dojo/
   - `clsx` 系を使わず、React 標準の条件分岐で書ききる
 
 参照: SPEC.md §7.2 ビルドパイプライン。第01回レビュー C01-04 で確立したルール。
+
+**F2 I18n 導入後も本規約を継続**（第13回 C13-21 予防記述）: v1.2.0 で多言語対応を導入しても Tailwind クラス名の動的構築は引き続き禁止。言語別スタイル分岐が必要な場合（例: 右書き言語対応）は、三項演算子の各枝に完全な class 文字列を書くルールで対応する:
+
+```js
+// NG: クラス名を言語別に動的構築
+className={`text-${lang === 'ar' ? 'right' : 'left'}`}
+
+// OK: 各枝に完全な class 文字列
+className={lang === 'ar' ? "text-right" : "text-left"}
+```
+
+F2 の MESSAGES は UI 文言データであり class 文字列ではないため本規約に抵触しない。ただし MESSAGES 内の英単語が Tailwind CLI で誤検出されるリスクは別途 SPEC §8.9.5 対策 A で対応する。
 
 ### コード namespace 方針（Babel Standalone の ES Modules 非対応対策）
 

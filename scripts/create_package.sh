@@ -200,13 +200,18 @@ build_release_package() {
         fi
     fi
 
-    # 配布版のサイズ目標チェック (SPEC.md §7.4: 500KB 未満)
+    # 配布版のサイズ目標チェック (SPEC.md §7.4: 非圧縮 3 MB 未満 / 1 MB 以上で警告)
+    # 第12回 C12-20 / C12-23 + 第13回 C13-01 を受け v1.0.x で更新
     local size_bytes
     size_bytes=$(stat -c%s dist/kuku-dojo.html 2>/dev/null || stat -f%z dist/kuku-dojo.html 2>/dev/null || echo 0)
     local size_kb=$(( size_bytes / 1024 ))
     echo "[release] dist/kuku-dojo.html サイズ: ${size_kb} KB"
-    if [ "$size_bytes" -gt 512000 ]; then
-        echo "[警告] 500KB の目標サイズを超えています (SPEC.md §7.4)"
+    if [ "$size_bytes" -gt 3145728 ]; then
+        echo "[エラー] 非圧縮 3 MB を超えています (SPEC.md §7.4 HARD FAIL)"
+        exit 1
+    fi
+    if [ "$size_bytes" -gt 1048576 ]; then
+        echo "[警告] zip 同梱目安 1 MB を超えています (SPEC.md §7.4 — 配布可能だが要確認)"
     fi
 
     create_release_info
