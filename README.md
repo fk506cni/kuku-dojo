@@ -51,9 +51,10 @@
 ### 必要なもの
 
 - モダンブラウザ（Chrome / Edge / Firefox / Safari の最新版）
-- **配布版ビルド時のみ** Node.js 18+（`dist/kuku-dojo.html` を生成するため）
+- **配布版ビルド / ユニットテスト実行時** Node.js **22+**（`package.json` の `engines` で宣言 / `--test-reporter=spec` と native glob の要件）
 - 開発版 `index.html` を直接編集する場合は、初回起動時のみインターネット接続（Play CDN から React / Tailwind を読み込むため）
 - （任意）簡易 HTTP サーバー: `python3 -m http.server 8000`
+- 動作確認 OS: Linux / macOS（Windows のテストは未対応 / `package.json` の glob パターンが shell 挙動に依存）
 
 ### ディレクトリ構成
 

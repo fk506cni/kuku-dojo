@@ -11,6 +11,15 @@ docs/__archives/
 # セッション開始プロンプト (開発過程資料、公開対象外)
 docs/start*.md
 
+# レビューレポート (公開対象外、執筆中のものが docs/ 直下に残る運用)
+docs/report*.md
+
+# 公開作業用マニュアル (著者の個人手順、公開対象外)
+docs/publication_manual.md
+
+# 元要件定義 (旧称のまま残っている初期要件書、公開レポジトリには含めない)
+docs/九九練習アプリ_要件定義書.md
+
 # --- 一時ファイル・試作 ---
 jank/
 drafts/
@@ -26,6 +35,9 @@ scripts/commit-push.sh
 scripts/archive_message.sh
 scripts/backup.sh
 scripts/stage-add.md
+
+# 著者個人の Google Drive アップロード (rclone remote 設定が個人依存、公開対象外)
+scripts/upload_to_gdrive.sh
 
 # --- 配布物 (任意) ---
 # 完全オフライン版のインライン化済み HTML は dist/ に格納予定

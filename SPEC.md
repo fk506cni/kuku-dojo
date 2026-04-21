@@ -103,7 +103,7 @@
 
 ### 2.2 型定義（JSDoc）
 
-> **本節は Settings / Account / SessionResult / QuestionDetail / WeightMap の単一 source of truth**（第13回 C13-08 で明文化）。§8.8.2 / §8.9.9 等の機能追加章で示す JSDoc は「動機と値範囲の説明用」であり、型定義の正は本節に置く。v1.1.0 / v1.2.0 で新フィールド (`slowThresholdSec` / `lang`) を追加するときは**本節を更新**し、§8.x 側は「§2.2 を参照」表記に格下げする。
+> **本節は Settings / Account / SessionResult / QuestionDetail / WeightMap の単一 source of truth**（第13回 C13-08 で明文化）。§8.8.2 / §8.9.9 等の機能追加章で示す JSDoc は「動機と値範囲の説明用」であり、型定義の正は本節に置く。v1.1.0 で `slowThresholdSec` を追加済み（C14-29）。v1.2.0 で `lang` を追加する時は**本節を更新**し、§8.9 側は「§2.2 を参照」表記に格下げする（C14-15: JSDoc 本体にプロセス指示を書かず、本 header に一元化）。
 
 ```js
 /**
@@ -153,10 +153,11 @@
  * @property {number}  [slowThresholdSec]   - (v1.1.0 追加 / §8.8) 遅い回答バッジのしきい値 (秒)。
  *                                             15 (のんびり) / 10 (ふつう、既定) / 7 (きびきび) / 5 (たつじん) の
  *                                             4 プリセット。Stats 画面の可視化専用に使い、重み更新や
- *                                             proficiencyLevel には影響しない。v1.0.x Settings からの migration は
- *                                             欠損時 10、プリセット外値は 10 に正規化 (C11-06 / C12-21)。
- *                                             `[?]` 付けは v1.0.x 永続化値との互換のため。
- *                                             v1.2.0 で `lang` を追加する際は本節 (§2.2) に同じ形で追記する (C13-08)。
+ *                                             proficiencyLevel には影響しない。
+ *                                             `[?]` は raw 永続化値（v1.0.x からのマイグレーション対象 / C11-06 /
+ *                                             C12-21）が optional であることを示す（C14-14 / C14-16）。
+ *                                             `Storage.loadSettings` 経由の戻り値は欠損時 10、プリセット外値 10 に
+ *                                             正規化されるため常に number（呼び出し側で undefined 防御は不要）。
  */
 ```
 
