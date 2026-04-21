@@ -29,6 +29,13 @@ test("proficiencyLevel: L4 得意（重み≤0.6 AND 正答率≥90%、慎重格
   assert.equal(Engine.proficiencyLevel(0.5, 1.0, 10), 4);
 });
 
+test("proficiencyLevel: L4 境界 just-outside は L3（C14-12 回帰担保）", () => {
+  // 将来 `weight <= 0.6` を `weight < 0.6` に refactor した場合の回帰検出。
+  // 浮動小数点で 0.6 exactly を得ることは稀で、実ユースケースは (0.5999... or 0.6000...) 付近。
+  assert.equal(Engine.proficiencyLevel(0.6001, 0.9, 10), 3, "重み 0.6 超過は L4 から外れる");
+  assert.equal(Engine.proficiencyLevel(0.6, 0.8999, 10), 3, "正答率 0.9 未満は L4 から外れる");
+});
+
 test("proficiencyLevel: L3 包括ルール（L1/L2/L4 のいずれにも該当しない中間）", () => {
   // 重み 0.5 ∧ 正答率 0.85 — L4 の AND 条件「正答率≥90%」を満たさず、L2 の OR も非該当
   assert.equal(Engine.proficiencyLevel(0.5, 0.85, 10), 3);

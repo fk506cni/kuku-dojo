@@ -20,6 +20,10 @@ const __filename = fileURLToPath(import.meta.url);
 const ROOT = resolve(dirname(__filename), "..", "..");
 const HTML = readFileSync(resolve(ROOT, "index.html"), "utf8");
 
+// 注: g フラグなしで最初の <script type="text/babel"> のみを抽出する（C14-07）。
+// 現状 index.html には text/babel script は 1 本のみだが、将来 2 本目が追加された場合に
+// silent に wrong slice する前に本ローダ側を再設計する必要がある。
+// F2 の MESSAGES は <script type="application/json"> なので本 regex にマッチしない（安全）。
 const SCRIPT_RE = /<script\s+type="text\/babel"[^>]*>([\s\S]*?)<\/script>/;
 const scriptMatch = HTML.match(SCRIPT_RE);
 if (!scriptMatch) {
@@ -27,6 +31,11 @@ if (!scriptMatch) {
 }
 const BABEL_SRC = scriptMatch[1];
 
+// マーカー抽出契約（C14-09）:
+// - マーカー文字列は index.html 内で「コメントとしてのみ」出現することを前提とする
+// - 文字列リテラル / テンプレート / JSX テキストノードに同文字列が混入すると
+//   最初の出現を掴んで wrong slice する可能性がある
+// - マーカーの一覧と同期責任は CLAUDE.md §コード namespace 方針に記載
 function sliceBetween(src, startMarker, endMarker) {
   const start = src.indexOf(startMarker);
   if (start === -1) throw new Error(`load-core: 開始マーカーなし: ${startMarker}`);
@@ -36,7 +45,8 @@ function sliceBetween(src, startMarker, endMarker) {
 }
 
 const STORAGE_SECTION = sliceBetween(BABEL_SRC, "// ── storage ──", "// ── engine ──");
-const ENGINE_SECTION = sliceBetween(BABEL_SRC, "// ── engine ──", "// ── effects ──");
+const ENGINE_SECTION = sliceBetween(BABEL_SRC, "// ── engine ──", "// ── helpers ──");
+const HELPERS_SECTION = sliceBetween(BABEL_SRC, "// ── helpers ──", "// ── effects ──");
 
 function makeFakeLocalStorage(initial = {}) {
   const mem = new Map(Object.entries(initial).map(([k, v]) => [k, String(v)]));
@@ -55,7 +65,9 @@ function makeFakeLocalStorage(initial = {}) {
 }
 
 // 数値 seed から再現可能な Math.random を作る。アルゴリズムは Numerical Recipes の LCG。
-// 決定論テスト専用なので分布品質は問わない。
+// 決定論テスト専用なので分布品質は問わない（テスト時の決定論担保のみが目的で、
+// 本番 Math.random 挙動の近似ではない / C14-10）。
+// seed=0 を渡すと LCG が 0 で stuck するため、内部で 1 に振替する（C14-26）。
 function makeSeededRandom(seed) {
   let state = (seed | 0) >>> 0;
   if (state === 0) state = 1;
@@ -66,16 +78,19 @@ function makeSeededRandom(seed) {
 }
 
 /**
- * Storage / Engine / Util / 関連定数を取り出す。
+ * Storage / Engine / Helpers / Util / 関連定数を取り出す。
  *
  * @param {object} [opts]
  * @param {Record<string,string>} [opts.initialStorage] - localStorage 初期値（key→string）
- * @param {number} [opts.randomSeed] - Math.random を LCG で差し替える。省略時はホスト Math.random
+ * @param {number} [opts.randomSeed] - Math.random を LCG で差し替える。seed=0 は内部で 1 に振替
+ *                                     （LCG が 0 で stuck するため）。省略時はホスト Math.random
  * @returns {{
  *   Storage: object, Engine: object, Util: object,
+ *   ResultHelpers: object, StatsHelpers: object,
  *   DEFAULT_SETTINGS: object,
  *   WRONG_WEIGHT_BOOST_PRESETS: ReadonlyArray<{value:number,label:string,desc:string}>,
  *   SESSION_LIMIT: number,
+ *   STATS_RECENT_N: number,
  *   localStorage: ReturnType<typeof makeFakeLocalStorage>,
  *   random: () => number,
  * }}
@@ -89,6 +104,9 @@ export function loadCore(opts = {}) {
   const mathShim = Object.create(Math);
   mathShim.random = random;
 
+  // VM sandbox に注入する intrinsics。index.html の storage / engine / helpers セクションが
+  // 使う可能性のある組込みはすべて載せる。欠落すると VM 内で ReferenceError になるため、
+  // 「現状使っていないが将来使う可能性があるもの」も防御的に含める（C14-01）。
   const sandbox = {
     localStorage: fakeLS,
     console: { warn: () => {}, log: () => {}, error: () => {}, info: () => {} },
@@ -101,17 +119,34 @@ export function loadCore(opts = {}) {
     Boolean,
     Set,
     Map,
+    WeakMap,
+    WeakSet,
+    Symbol,
+    Promise,
+    RegExp,
     Error,
+    TypeError,
+    RangeError,
     SyntaxError,
+    URIError,
+    ReferenceError,
     Date,
+    Intl,
+    Reflect,
+    Proxy,
+    isFinite,
+    isNaN,
+    parseFloat,
+    parseInt,
   };
   vm.createContext(sandbox);
 
   const code = [
     STORAGE_SECTION,
     ENGINE_SECTION,
+    HELPERS_SECTION,
     // 末尾で公開したいシンボルを return 代わりに完成式にする
-    ";({ Storage, Engine, Util, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SESSION_LIMIT });",
+    ";({ Storage, Engine, Util, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SESSION_LIMIT, STATS_RECENT_N });",
   ].join("\n");
 
   const exported = vm.runInContext(code, sandbox, { filename: "core-extracted.js" });

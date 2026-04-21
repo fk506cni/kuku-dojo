@@ -45,15 +45,21 @@ test("updateWeight: wrongWeightBoost=2.0 は +4.0 加算、正解側は -0.3 固
   assert.equal(dec["5-5"], 0.7); // 正解減算は boost 非対象
 });
 
-test("updateWeight: wrongWeightBoost が非数値 / 0 以下なら 1.0 フォールバック", () => {
-  const a = Engine.updateWeight({ "1-1": 1.0 }, 1, 1, false, undefined);
-  assert.equal(a["1-1"], 3.0);
-  const b = Engine.updateWeight({ "1-1": 1.0 }, 1, 1, false, 0);
-  assert.equal(b["1-1"], 3.0);
-  const c = Engine.updateWeight({ "1-1": 1.0 }, 1, 1, false, -1);
-  assert.equal(c["1-1"], 3.0);
-  const d = Engine.updateWeight({ "1-1": 1.0 }, 1, 1, false, NaN);
-  assert.equal(d["1-1"], 3.0);
+test("updateWeight: wrongWeightBoost が positive number でない場合は 1.0 にフォールバック（C14-13 意図明示）", () => {
+  // 本テストは「positive number 以外はすべて 1.0 fallback」の契約を検証する。
+  // 現行実装 `typeof === "number" && x > 0` と将来の `Number.isFinite && x > 0` いずれでも
+  // 同じケースが通るように記述している（NaN は両者で false、undefined/0/負数も同様）。
+  // 注: Infinity は現行実装では受理され clamp 10.0 になる（別挙動のため本テスト対象外）。
+  const cases = [
+    { boost: undefined, label: "undefined" },
+    { boost: 0,         label: "0" },
+    { boost: -1,        label: "負数" },
+    { boost: NaN,       label: "NaN" },
+  ];
+  for (const { boost, label } of cases) {
+    const next = Engine.updateWeight({ "1-1": 1.0 }, 1, 1, false, boost);
+    assert.equal(next["1-1"], 3.0, `boost=${label} は 1.0 fallback で +2.0 されるべき`);
+  }
 });
 
 test("updateWeight: 元オブジェクトを破壊しない（新オブジェクトを返す）", () => {
