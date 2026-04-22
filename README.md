@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![offline](https://img.shields.io/badge/offline-100%25-green)](#-特徴)
 [![single HTML](https://img.shields.io/badge/dist-single_HTML-blue)](#-ダウンロード)
+[![Node](https://img.shields.io/badge/node-22%2B-green)](package.json)
+[![tests](https://github.com/fk506cni/kuku-dojo/actions/workflows/test.yml/badge.svg)](.github/workflows/test.yml)
 
 小学2〜3年生向け、**単一 HTML ファイルで動くオフライン九九練習アプリ**。
 苦手な問題を自動で重点出題する**適応型学習アルゴリズム**と、
