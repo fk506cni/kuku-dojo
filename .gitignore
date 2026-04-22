@@ -20,6 +20,13 @@ docs/publication_manual.md
 # 元要件定義 (旧称のまま残っている初期要件書、公開レポジトリには含めない)
 docs/九九練習アプリ_要件定義書.md
 
+# --- 公開前作業資材 / 旧 step 資料 (v1.0.0 公開準備時のローカル資料、公開対象外 / C15-04) ---
+publication_plan.md
+main/
+docker/
+.gitkeep
+scripts/.gitkeep
+
 # --- 一時ファイル・試作 ---
 jank/
 drafts/
@@ -88,5 +95,6 @@ package-lock.json.bak
 # 注: 本プロジェクトの成果物は index.html (ルート) なので
 # *.html は除外しない（元テンプレから変更）
 #
-# 公開レポジトリ向けに `main/` / `data/` / `docker/` は削除済み (publication_plan.md 参照)
+# 公開レポジトリ向けに `main/` / `data/` / `docker/` は gitignore で除外
+# (ローカルにはファイルが残るが tracked に昇格しない / C15-04)
 # ============================================

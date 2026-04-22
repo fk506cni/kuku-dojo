@@ -32,6 +32,14 @@ test("proficiencyLevel: L4 得意（重み≤0.6 AND 正答率≥90%、慎重格
 test("proficiencyLevel: L4 境界 just-outside は L3（C14-12 回帰担保）", () => {
   // 将来 `weight <= 0.6` を `weight < 0.6` に refactor した場合の回帰検出。
   // 浮動小数点で 0.6 exactly を得ることは稀で、実ユースケースは (0.5999... or 0.6000...) 付近。
+  //
+  // Number.EPSILON (≈2.22e-16 = 1.0 付近の ULP) ではなく 0.0001 を選ぶ理由（第15回 C15-12）:
+  //  - updateWeight の実算出値は 0.3 刻みの減算 + 2.0 刻みの加算 + clamp で生成されるため、
+  //    実ユースケースでの「境界越え」は EPSILON サイズではなく 0.001〜0.01 オーダー
+  //  - 0.0001 は「重みが 0.6 を有意に超えた」ことを人間が読んで直感的に判別できる
+  //  - Number.EPSILON ベースだと 0.6 の直後の representable float にしか跳ばず、
+  //    実コードが遭遇しないミクロ挙動を縛ることになり、将来 clamp の閾値調整で
+  //    false failure を起こしやすい
   assert.equal(Engine.proficiencyLevel(0.6001, 0.9, 10), 3, "重み 0.6 超過は L4 から外れる");
   assert.equal(Engine.proficiencyLevel(0.6, 0.8999, 10), 3, "正答率 0.9 未満は L4 から外れる");
 });

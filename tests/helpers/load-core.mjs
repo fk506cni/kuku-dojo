@@ -107,6 +107,20 @@ export function loadCore(opts = {}) {
   // VM sandbox に注入する intrinsics。index.html の storage / engine / helpers セクションが
   // 使う可能性のある組込みはすべて載せる。欠落すると VM 内で ReferenceError になるため、
   // 「現状使っていないが将来使う可能性があるもの」も防御的に含める（C14-01）。
+  //
+  // 追加基準（第15回 C15-11）:
+  //  (1) 現行の storage / engine / helpers で実使用中のもの: 必須（Math / JSON / Array /
+  //      Object / Number / String / Boolean / Set / Map / Error / SyntaxError / Date）
+  //  (2) F1（slowThresholdSec 関連）/ F2（MESSAGES I18n）で使う見込み + エラー系:
+  //      防御的に追加（Promise / RegExp / TypeError / RangeError / URIError /
+  //      ReferenceError / Symbol / WeakMap / WeakSet / Intl / Reflect / Proxy /
+  //      isFinite / isNaN / parseFloat / parseInt）
+  //  (3) Web プラットフォーム固有の API（Blob / URL / URLSearchParams / TextEncoder /
+  //      TextDecoder / AbortController / structuredClone / TypedArray 族 / ArrayBuffer /
+  //      DataView）は**意図的に除外**。本プロジェクトのロジック層は localStorage / JSON /
+  //      Math.random / Date のみに依存する pure-JS 設計で、Web API が VM に現れた瞬間
+  //      「レイヤ分離の逸脱」と判別できる方がレビュー時の検出性が高い。将来必要になった
+  //      時点で個別に追加判断する
   const sandbox = {
     localStorage: fakeLS,
     console: { warn: () => {}, log: () => {}, error: () => {}, info: () => {} },
