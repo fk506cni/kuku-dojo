@@ -1,6 +1,5 @@
-// Storage.loadSettings 回帰テスト。SPEC §2.2 / §2.3 / C11-04 / C11-06。
-// v1.0.x 現行挙動の担保。F1 で slowThresholdSec マイグレーションが追加された時点で、
-// このファイルに「欠損 → 10 補完」「プリセット外 → 10 正規化」のケースを追記する想定。
+// Storage.loadSettings 回帰テスト。SPEC §2.2 / §2.3 / C11-04 / C11-06 / §8.8.2。
+// v1.0.x 現行挙動の担保 + F1 (v1.1.0) で追加された slowThresholdSec マイグレーションの検証。
 
 import { test } from "node:test";
 import assert from "node:assert";
@@ -13,6 +12,17 @@ function withSettings(accountId, settings) {
   return loadCore({
     initialStorage: {
       ["kuku_settings_" + accountId]: JSON.stringify(settings),
+    },
+  });
+}
+
+// 第16回 C16-05: JSON.stringify は NaN / Infinity を null に変換するため、withSettings 経由では
+// プリセット外異常値（負数 / Infinity / 非数値 / 真偽値 / 小数）を忠実にテストできない。
+// withSettingsRaw は localStorage に生の JSON 文字列を書き込み、loadSettings の正規化パスを直接検証する。
+function withSettingsRaw(accountId, rawJson) {
+  return loadCore({
+    initialStorage: {
+      ["kuku_settings_" + accountId]: rawJson,
     },
   });
 }
@@ -77,4 +87,105 @@ test("loadSettings: 破損 JSON はキーを破棄して DEFAULT_SETTINGS を返
   assert.deepEqual(Storage.loadSettings("acct-broken"), { ...DEFAULT_SETTINGS });
   // 破棄されていること
   assert.equal(localStorage.getItem("kuku_settings_acct-broken"), null);
+});
+
+// ── F1 (v1.1.0) slowThresholdSec マイグレーション ─────────────────
+// SPEC §8.8.2: v1.0.x から上がった既存ユーザーの Settings に slowThresholdSec が無ければ 10 で補完。
+// プリセット {15, 10, 7, 5} 外の値は 10 (ふつう) に正規化 (C11-06 と同パターン / C12-21 解消)。
+
+test("loadSettings: 旧 v1.0.x Settings（slowThresholdSec 欠損）は 10 で補完（F1 マイグレ）", () => {
+  const { Storage } = withSettings("acct-v10x", {
+    soundEnabled: true,
+    effectsEnabled: true,
+    volume: 0.4,
+    wrongWeightBoost: 1.0,
+    // slowThresholdSec 欠損 — v1.0.x Settings 想定
+  });
+  assert.equal(Storage.loadSettings("acct-v10x").slowThresholdSec, 10);
+});
+
+test("loadSettings: slowThresholdSec プリセット外（3 / 99 / 文字列）は 10 に正規化", () => {
+  for (const v of [3, 99, "10", null, NaN]) {
+    const { Storage } = withSettings("acct-s-" + String(v), {
+      soundEnabled: true,
+      effectsEnabled: true,
+      volume: 0.4,
+      wrongWeightBoost: 1.0,
+      slowThresholdSec: v,
+    });
+    assert.equal(Storage.loadSettings("acct-s-" + String(v)).slowThresholdSec, 10,
+      "プリセット外値 " + String(v) + " は 10 に正規化されるべき");
+  }
+});
+
+test("loadSettings: slowThresholdSec プリセット値 15 / 10 / 7 / 5 はそのまま保持", () => {
+  for (const v of [15, 10, 7, 5]) {
+    const { Storage } = withSettings("acct-sok-" + v, {
+      soundEnabled: true,
+      effectsEnabled: true,
+      volume: 0.4,
+      wrongWeightBoost: 1.0,
+      slowThresholdSec: v,
+    });
+    assert.equal(Storage.loadSettings("acct-sok-" + v).slowThresholdSec, v);
+  }
+});
+
+test("loadSettings: v1.0.0 → 最新への直接マイグレーション（wrongWeightBoost + slowThresholdSec 同時補完 / C12-21）", () => {
+  // v1.0.0 時点では wrongWeightBoost も slowThresholdSec も無い可能性がある。
+  // F2 で lang が追加されたら本テストに lang も追加する想定（§8.9 / C12-21）。
+  const { Storage } = withSettings("acct-v100", {
+    soundEnabled: true,
+    effectsEnabled: false,
+    volume: 0.2,
+    // wrongWeightBoost / slowThresholdSec 欠損
+  });
+  const s = Storage.loadSettings("acct-v100");
+  assert.equal(s.wrongWeightBoost, 1.0);
+  assert.equal(s.slowThresholdSec, 10);
+  // 既存フィールドは保持
+  assert.equal(s.soundEnabled, true);
+  assert.equal(s.effectsEnabled, false);
+  assert.equal(s.volume, 0.2);
+});
+
+// 第16回 C16-05 / C16-20: JSON.stringify で失われる異常値 (Infinity / NaN / 負数 / 小数 / 真偽値) を
+// 生 JSON 文字列で直接注入し、Storage.loadSettings のプリセット外正規化が堅牢であることを確認する。
+// withSettings 経由ではこれらの値の多くが null に decode されてしまい、忠実なカバレッジにならない。
+test("loadSettings: slowThresholdSec が負数 / Infinity / 真偽値 / 小数 / 大きすぎる整数の raw JSON でも 10 に正規化（C16-05 / C16-20）", () => {
+  const base = '"soundEnabled":true,"effectsEnabled":true,"volume":0.4,"wrongWeightBoost":1.0';
+  const cases = [
+    ['{' + base + ',"slowThresholdSec":-5}',      "負数"],
+    ['{' + base + ',"slowThresholdSec":1e308}',   "大きすぎる整数"],
+    ['{' + base + ',"slowThresholdSec":10.5}',    "非プリセット小数"],
+    ['{' + base + ',"slowThresholdSec":true}',    "真偽値 true"],
+    ['{' + base + ',"slowThresholdSec":false}',   "真偽値 false"],
+    ['{' + base + ',"slowThresholdSec":[10]}',    "配列"],
+    ['{' + base + ',"slowThresholdSec":{"v":10}}', "オブジェクト"],
+  ];
+  for (const [raw, desc] of cases) {
+    const { Storage } = withSettingsRaw("acct-raw-" + desc, raw);
+    assert.equal(
+      Storage.loadSettings("acct-raw-" + desc).slowThresholdSec,
+      10,
+      desc + " (" + raw + ") は 10 に正規化されるべき",
+    );
+  }
+});
+
+test("loadSettings: wrongWeightBoost が負数 / 小数 / 真偽値の raw JSON でも 1.0 に正規化（C16-20）", () => {
+  const base = '"soundEnabled":true,"effectsEnabled":true,"volume":0.4,"slowThresholdSec":10';
+  const cases = [
+    ['{' + base + ',"wrongWeightBoost":-1}',      "負数"],
+    ['{' + base + ',"wrongWeightBoost":1.5}',     "非プリセット小数"],
+    ['{' + base + ',"wrongWeightBoost":true}',    "真偽値"],
+  ];
+  for (const [raw, desc] of cases) {
+    const { Storage } = withSettingsRaw("acct-wb-raw-" + desc, raw);
+    assert.equal(
+      Storage.loadSettings("acct-wb-raw-" + desc).wrongWeightBoost,
+      1.0,
+      desc + " (" + raw + ") は 1.0 に正規化されるべき",
+    );
+  }
 });

@@ -168,6 +168,8 @@
        * @property {number}  volume              - 0.0 - 1.0
        * @property {number}  wrongWeightBoost    - 不正解加算 (+2.0) の倍率。SPEC §3.2 参照。
        *                                            0.5 (ひかえめ) / 1.0 (ふつう、既定) / 2.0 (しっかり)
+       * @property {number}  slowThresholdSec    - (v1.1.0 追加 / §8.8) 遅い回答バッジのしきい値 (秒)。
+       *                                            15 (のんびり) / 10 (ふつう、既定) / 7 (きびきび) / 5 (たつじん)
        */
 
       /**
@@ -193,12 +195,22 @@
       const Util = { uuid };
 
       /** @type {Settings} */
-      const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0 });
+      const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0, slowThresholdSec: 10 });
       // 3 段プリセット。WRONG_WEIGHT_BOOST_PRESETS の順は UI 表示順と一致させる (ひかえめ → ふつう → しっかり)。
       const WRONG_WEIGHT_BOOST_PRESETS = Object.freeze([
         { value: 0.5, label: "ひかえめ",   desc: "まちがえても ちょっとだけ でやすくなる" },
         { value: 1.0, label: "ふつう",     desc: "まちがえた もんだいが でやすくなる (きじゅん)" },
         { value: 2.0, label: "しっかり",   desc: "まちがえた もんだいが たくさん でやすくなる" },
+      ]);
+      // v1.1.0 §8.8 / prompts.md Step 11 実装対象 1。SLOW_THRESHOLD_PRESETS の順は UI 表示順と一致
+      // (のんびり → ふつう → きびきび → たつじん)。3 秒プリセットは第13回で廃止（保護者押し付け
+      // リスク + 物理達成困難で C13-09 / C13-22 承認）。「たつじん」到達時は Stats 画面でミント背景
+      // のみ表示し、未達でもペナルティは発生しない（SPEC §8.8.1 (5) ペナルティなし方針）。
+      const SLOW_THRESHOLD_PRESETS = Object.freeze([
+        { value: 15, label: "のんびり",   desc: "ゆっくり かんがえても だいじょうぶ" },
+        { value: 10, label: "ふつう",     desc: "いつもの ペースで こたえよう (きじゅん)" },
+        { value: 7,  label: "きびきび",   desc: "ちょっと はやめに こたえよう" },
+        { value: 5,  label: "たつじん",   desc: "すごく はやく こたえよう (ちょうせん)" },
       ]);
       const SESSION_LIMIT = 100;
       const QUOTA_TRIM_COUNT = 10;
@@ -436,6 +448,13 @@
           if (presetValues.indexOf(merged.wrongWeightBoost) === -1) {
             merged.wrongWeightBoost = DEFAULT_SETTINGS.wrongWeightBoost;
           }
+          // v1.1.0 §8.8.2 / C12-21: slowThresholdSec も 4 プリセット外 (旧 3 秒 / 手編集 / 文字列) は
+          // 10 (ふつう) に正規化。v1.0.x → v1.1.0 の前方互換マイグレは {...DEFAULT_SETTINGS, ...raw}
+          // のスプレッドで欠損補完されるため、ここは「プリセット外値の正規化」のみ担う。
+          const slowPresetValues = SLOW_THRESHOLD_PRESETS.map(function (p) { return p.value; });
+          if (slowPresetValues.indexOf(merged.slowThresholdSec) === -1) {
+            merged.slowThresholdSec = DEFAULT_SETTINGS.slowThresholdSec;
+          }
           return merged;
         },
 
@@ -613,7 +632,22 @@
         return 3; // L1/L2/L4 のいずれにも該当しない領域を包括 (SPEC §3.3)
       }
 
-      const Engine = { initialWeights, pickQuestion, updateWeight, proficiencyLevel };
+      /**
+       * 平均回答時間が「遅い」判定しきい値を超えているかを判定する (v1.1.0 / SPEC §8.8)。
+       * **proficiencyLevel / updateWeight には組み込まず、Stats 可視化専用**（第12回 C12-01 / C12-04 解消）。
+       * - データ無し (number 以外 / <= 0) は false（Stats 画面で "まだ でていないよ" 側に回す）
+       * - ちょうど境界 (avgResponseMs === thresholdSec * 1000) は false（> のみ true）
+       * @param {number} avgResponseMs - セル平均回答時間 (ms)
+       * @param {number} thresholdSec - しきい値 (秒) = Settings.slowThresholdSec
+       * @returns {boolean}
+       */
+      function isSlowAverage(avgResponseMs, thresholdSec) {
+        if (typeof avgResponseMs !== "number" || !Number.isFinite(avgResponseMs) || avgResponseMs <= 0) return false;
+        if (typeof thresholdSec !== "number" || !Number.isFinite(thresholdSec) || thresholdSec <= 0) return false;
+        return avgResponseMs > thresholdSec * 1000;
+      }
+
+      const Engine = { initialWeights, pickQuestion, updateWeight, proficiencyLevel, isSlowAverage };
 
       // ── helpers ───────────────────────────────────────────────────
       // ResultHelpers / StatsHelpers: セッション結果の検証・整形・集計を行うピュアヘルパ。
@@ -627,6 +661,14 @@
       // SPEC §3.3: 習熟度マップ算出に使う参照セッション数。
       // StatsHelpers.aggregate / StatsScreen の両者が参照するため helpers 節に置く。
       const STATS_RECENT_N = 5;
+      // v1.1.0 §8.8: セッション先頭 COLD_START_COUNT 問の responseTime は集計から除外する。
+      // 起動直後は操作慣れ / 画面暗順応 / 指ならし等で有意に遅くなりがちで、平均を歪めるため (C12-07)。
+      // 「がんばった きろく」タブ専用で、既存 proficiencyLevel / 9×9 マップには関与しない (C12-01)。
+      const COLD_START_COUNT = 3;
+      // 「がんばった きろく」タブで per-cell に表示する最新 responseTime サンプル件数。
+      // 横棒グラフの視認性を保つため 5 件に制限。N=5 では trimmed mean は数学的に単純平均と一致するため
+      // 採用しない (C13-06)。
+      const STATS_RESPONSE_TIME_SAMPLES = 5;
 
       const ResultHelpers = {
         /**
@@ -728,7 +770,13 @@
           const cellStats = {};
           for (let dan = 1; dan <= 9; dan++) {
             for (let m = 1; m <= 9; m++) {
-              cellStats[dan + "-" + m] = { attempts: 0, correct: 0, wrong: 0, correctRate: 0 };
+              // v1.1.0 §8.8: responseTimes / avgResponseMs / responseAttempts は「がんばった きろく」
+              // タブ用。9×9 マップ（既存）は attempts/correct/wrong/correctRate のみ参照し、
+              // 時間要素に触れないことで C12-02 (マップの UX 毀損) を回避する。
+              cellStats[dan + "-" + m] = {
+                attempts: 0, correct: 0, wrong: 0, correctRate: 0,
+                responseTimes: [], avgResponseMs: null, responseAttempts: 0,
+              };
             }
           }
           for (let si = 0; si < recent.length; si++) {
@@ -746,6 +794,35 @@
           Object.keys(cellStats).forEach(function (k) {
             const cs = cellStats[k];
             cs.correctRate = cs.attempts > 0 ? cs.correct / cs.attempts : 0;
+          });
+
+          // v1.1.0 §8.8: 全有効セッション（sortedDesc = timestamp 降順）を走査し、各セッションの
+          // 先頭 COLD_START_COUNT 問 (cold start) を除外しつつ、セル別に responseTime を蓄積する。
+          // 蓄積順は「新 → 古」（sortedDesc 順 + 同一セッション内は details[] 順）になる。
+          // 最後に最新 STATS_RESPONSE_TIME_SAMPLES 件だけを残して per-cell 平均を算出する。
+          for (let si = 0; si < sortedDesc.length; si++) {
+            const details = Array.isArray(sortedDesc[si].details) ? sortedDesc[si].details : [];
+            for (let di = COLD_START_COUNT; di < details.length; di++) {
+              const d = details[di];
+              if (!d || !Number.isInteger(d.dan) || !Number.isInteger(d.multiplier)) continue;
+              if (d.dan < 1 || d.dan > 9 || d.multiplier < 1 || d.multiplier > 9) continue;
+              if (typeof d.responseTime !== "number" || !Number.isFinite(d.responseTime) || d.responseTime <= 0) continue;
+              const cs = cellStats[d.dan + "-" + d.multiplier];
+              if (cs.responseTimes.length < STATS_RESPONSE_TIME_SAMPLES) {
+                cs.responseTimes.push(d.responseTime);
+              }
+              cs.responseAttempts++;
+            }
+          }
+          Object.keys(cellStats).forEach(function (k) {
+            const cs = cellStats[k];
+            if (cs.responseTimes.length === 0) {
+              cs.avgResponseMs = null;
+            } else {
+              let sum = 0;
+              for (let i = 0; i < cs.responseTimes.length; i++) sum += cs.responseTimes[i];
+              cs.avgResponseMs = sum / cs.responseTimes.length; // trimmed mean は不採用 (C13-06)
+            }
           });
 
           const danStats = {};
@@ -1715,6 +1792,12 @@
           onUpdate((prev) => ({ ...prev, volume: draftVolume }));
         };
 
+        // v1.1.0 SPEC §4.2.1 案 C: プログレッシブ開示。
+        // wrongWeightBoost / slowThresholdSec は「くわしい せってい」折りたたみ内にまとめる。
+        // 開閉状態は localStorage に保存しない（モーダルを閉じる度にリセット）。
+        // v1.2.0 で lang が追加される時も本節に追加する (第13回 C13-04)。
+        const [advancedOpen, setAdvancedOpen] = useState(false);
+
         return (
           <div
             ref={modalRef}
@@ -1814,68 +1897,149 @@
                   />
                 </div>
 
-                {/* にがて もんだいの でやすさ (SPEC §3.2 wrongWeightBoost 3 段プリセット)。
-                    role="radiogroup" で選択肢の排他性をスクリーンリーダに伝える。 */}
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span id="kuku-boost-label" className="text-xl font-bold text-slate-700">
-                      にがて もんだい
-                    </span>
-                    <span className="text-slate-500 text-sm">でやすさ</span>
+              </div>
+
+              {/* v1.1.0 §4.2.1 案 C: 「くわしい せってい」プログレッシブ開示。
+                  基本 3 項目（おと / エフェクト / おんりょう）の下にトグルで wrongWeightBoost と
+                  slowThresholdSec を開閉。Tab フォーカスは常にボタン自身に入り、aria-expanded で
+                  折りたたみ状態を伝える。開閉状態は localStorage に保存しない (C13-04)。 */}
+              <div className="mt-6 pt-5 border-t border-slate-200">
+                <button
+                  type="button"
+                  aria-expanded={advancedOpen}
+                  aria-controls="kuku-advanced-settings"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  className="w-full min-h-[48px] px-4 py-3 bg-white text-slate-700 font-bold rounded-xl border-2 border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 flex items-center justify-between"
+                >
+                  <span>くわしい せってい</span>
+                  <span aria-hidden="true" className="text-slate-500">{advancedOpen ? "▲" : "▼"}</span>
+                </button>
+
+                {advancedOpen && (
+                  <div id="kuku-advanced-settings" className="mt-4 space-y-5">
+                    {/* にがて もんだいの でやすさ (SPEC §3.2 wrongWeightBoost 3 段プリセット)。
+                        role="radiogroup" で選択肢の排他性をスクリーンリーダに伝える。 */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span id="kuku-boost-label" className="text-xl font-bold text-slate-700">
+                          にがて もんだい
+                        </span>
+                        <span className="text-slate-500 text-sm">でやすさ</span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                        まちがえた もんだいの でやすさを かえるよ
+                      </p>
+                      {/* C11-05: WAI-ARIA radiogroup pattern に沿い Arrow キー切替 + roving tabindex。
+                          - Tab で「選択中ボタン」のみにフォーカスが入る (非選択は tabindex=-1 でスキップ)
+                          - ArrowLeft/Up = 前、ArrowRight/Down = 次、Home/End で端へ
+                          - Arrow キーで切替時は即座に選択変更 + フォーカス移動 (APG 既定) */}
+                      <div
+                        role="radiogroup"
+                        aria-labelledby="kuku-boost-label"
+                        className="mt-2 grid grid-cols-3 gap-2"
+                        onKeyDown={(e) => {
+                          const values = WRONG_WEIGHT_BOOST_PRESETS.map((p) => p.value);
+                          const cur = values.indexOf(settings.wrongWeightBoost);
+                          const idx = cur === -1 ? 1 : cur; // プリセット外 (C11-06 予防) なら「ふつう」起点
+                          let nextIdx = null;
+                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
+                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
+                          else if (e.key === "Home") nextIdx = 0;
+                          else if (e.key === "End") nextIdx = values.length - 1;
+                          if (nextIdx === null) return;
+                          e.preventDefault();
+                          const nextValue = values[nextIdx];
+                          onUpdate((prev) => ({ ...prev, wrongWeightBoost: nextValue }));
+                          // フォーカスを次の radio に移す (roving tabindex)
+                          const group = e.currentTarget;
+                          const buttons = group.querySelectorAll('[role="radio"]');
+                          if (buttons[nextIdx]) buttons[nextIdx].focus();
+                        }}
+                      >
+                        {WRONG_WEIGHT_BOOST_PRESETS.map((preset) => {
+                          const selected = settings.wrongWeightBoost === preset.value;
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              aria-label={preset.label + ": " + preset.desc}
+                              tabIndex={selected ? 0 : -1}
+                              onClick={() => onUpdate((prev) => ({ ...prev, wrongWeightBoost: preset.value }))}
+                              className={
+                                selected
+                                  ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                                  : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                              }
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* じかんもくひょう (v1.1.0 §8.8 slowThresholdSec 4 段プリセット)。
+                        「たつじん 5 秒」は到達時のミント背景可視化のみで、未達でもペナルティは発生しない
+                        （SPEC §8.8.1 (5)）。保護者が押し付けないよう Release Notes / README で明記済み。 */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span id="kuku-slow-label" className="text-xl font-bold text-slate-700">
+                          じかんもくひょう
+                        </span>
+                        <span className="text-slate-500 text-sm">はやさ</span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                        これより はやく こたえられたら「とうたつ」だよ
+                      </p>
+                      <div
+                        role="radiogroup"
+                        aria-labelledby="kuku-slow-label"
+                        className="mt-2 grid grid-cols-4 gap-2"
+                        onKeyDown={(e) => {
+                          const values = SLOW_THRESHOLD_PRESETS.map((p) => p.value);
+                          const cur = values.indexOf(settings.slowThresholdSec);
+                          const idx = cur === -1 ? 1 : cur; // プリセット外なら「ふつう」起点
+                          let nextIdx = null;
+                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
+                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
+                          else if (e.key === "Home") nextIdx = 0;
+                          else if (e.key === "End") nextIdx = values.length - 1;
+                          if (nextIdx === null) return;
+                          e.preventDefault();
+                          const nextValue = values[nextIdx];
+                          onUpdate((prev) => ({ ...prev, slowThresholdSec: nextValue }));
+                          const group = e.currentTarget;
+                          const buttons = group.querySelectorAll('[role="radio"]');
+                          if (buttons[nextIdx]) buttons[nextIdx].focus();
+                        }}
+                      >
+                        {SLOW_THRESHOLD_PRESETS.map((preset) => {
+                          const selected = settings.slowThresholdSec === preset.value;
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              aria-label={preset.label + " (" + preset.value + "びょう): " + preset.desc}
+                              tabIndex={selected ? 0 : -1}
+                              onClick={() => onUpdate((prev) => ({ ...prev, slowThresholdSec: preset.value }))}
+                              className={
+                                selected
+                                  ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                                  : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                              }
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500 leading-relaxed">
-                    まちがえた もんだいの でやすさを かえるよ
-                  </p>
-                  {/* C11-05: WAI-ARIA radiogroup pattern に沿い Arrow キー切替 + roving tabindex。
-                      - Tab で「選択中ボタン」のみにフォーカスが入る (非選択は tabindex=-1 でスキップ)
-                      - ArrowLeft/Up = 前、ArrowRight/Down = 次、Home/End で端へ
-                      - Arrow キーで切替時は即座に選択変更 + フォーカス移動 (APG 既定) */}
-                  <div
-                    role="radiogroup"
-                    aria-labelledby="kuku-boost-label"
-                    className="mt-2 grid grid-cols-3 gap-2"
-                    onKeyDown={(e) => {
-                      const values = WRONG_WEIGHT_BOOST_PRESETS.map((p) => p.value);
-                      const cur = values.indexOf(settings.wrongWeightBoost);
-                      const idx = cur === -1 ? 1 : cur; // プリセット外 (C11-06 予防) なら「ふつう」起点
-                      let nextIdx = null;
-                      if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
-                      else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
-                      else if (e.key === "Home") nextIdx = 0;
-                      else if (e.key === "End") nextIdx = values.length - 1;
-                      if (nextIdx === null) return;
-                      e.preventDefault();
-                      const nextValue = values[nextIdx];
-                      onUpdate((prev) => ({ ...prev, wrongWeightBoost: nextValue }));
-                      // フォーカスを次の radio に移す (roving tabindex)
-                      const group = e.currentTarget;
-                      const buttons = group.querySelectorAll('[role="radio"]');
-                      if (buttons[nextIdx]) buttons[nextIdx].focus();
-                    }}
-                  >
-                    {WRONG_WEIGHT_BOOST_PRESETS.map((preset) => {
-                      const selected = settings.wrongWeightBoost === preset.value;
-                      return (
-                        <button
-                          key={preset.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          aria-label={preset.label + ": " + preset.desc}
-                          tabIndex={selected ? 0 : -1}
-                          onClick={() => onUpdate((prev) => ({ ...prev, wrongWeightBoost: preset.value }))}
-                          className={
-                            selected
-                              ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
-                              : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
-                          }
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                )}
               </div>
 
               <button
@@ -3162,10 +3326,13 @@
        * - 「もどる」は push 遷移 (SPEC §4.1)。結果画面のような replace は不要。
        */
       function StatsScreen() {
-        const { account } = useContext(AppContext);
+        const { account, settings } = useContext(AppContext);
         const [tab, setTab] = useState("history");
         const [selectedCell, setSelectedCell] = useState(null);
         const detailRef = useRef(null);
+        // v1.1.0 §4.2.1 / C13-12: タブ間 ArrowKey 遷移のための配列定義。
+        // 追加順は UI 表示順と一致 (history → dans → map → time → weak)。
+        const TAB_ORDER = ["history", "dans", "map", "time", "weak"];
 
         const accountId = account ? account.id : null;
 
@@ -3284,24 +3451,49 @@
                 </button>
               </header>
 
-              {/* タブ: role=tablist + aria-controls / role=tabpanel の紐付けで ARIA tab パターンを満たす (C09-07) */}
-              <nav role="tablist" aria-label="せいせき カテゴリ" className="flex flex-wrap gap-2">
-                <button type="button" role="tab" id="kuku-stats-tab-history" aria-selected={tab === "history"} aria-controls="kuku-stats-panel-history" onClick={() => selectTab("history")} className={tabBtnCls("history")}>
+              {/* タブ: role=tablist + aria-controls / role=tabpanel の紐付けで ARIA tab パターンを満たす (C09-07)。
+                  v1.1.0 C13-12: ArrowKey でタブ間移動 + Home/End で端へ。roving tabindex で選択中タブのみ
+                  Tab フォーカス可能にし、Tab キーの 1 ストロークでパネル内フォーカスへ抜ける。 */}
+              <nav
+                role="tablist"
+                aria-label="せいせき カテゴリ"
+                className="flex flex-wrap gap-2"
+                onKeyDown={(e) => {
+                  const cur = TAB_ORDER.indexOf(tab);
+                  const idx = cur === -1 ? 0 : cur;
+                  let nextIdx = null;
+                  if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+                  else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % TAB_ORDER.length;
+                  else if (e.key === "Home") nextIdx = 0;
+                  else if (e.key === "End") nextIdx = TAB_ORDER.length - 1;
+                  if (nextIdx === null) return;
+                  e.preventDefault();
+                  const nextId = TAB_ORDER[nextIdx];
+                  selectTab(nextId); // 詳細カードも閉じる (C13-12)
+                  const group = e.currentTarget;
+                  const buttons = group.querySelectorAll('[role="tab"]');
+                  if (buttons[nextIdx]) buttons[nextIdx].focus();
+                }}
+              >
+                <button type="button" role="tab" id="kuku-stats-tab-history" aria-selected={tab === "history"} aria-controls="kuku-stats-panel-history" tabIndex={tab === "history" ? 0 : -1} onClick={() => selectTab("history")} className={tabBtnCls("history")}>
                   れきし
                 </button>
-                <button type="button" role="tab" id="kuku-stats-tab-dans" aria-selected={tab === "dans"} aria-controls="kuku-stats-panel-dans" onClick={() => selectTab("dans")} className={tabBtnCls("dans")}>
+                <button type="button" role="tab" id="kuku-stats-tab-dans" aria-selected={tab === "dans"} aria-controls="kuku-stats-panel-dans" tabIndex={tab === "dans" ? 0 : -1} onClick={() => selectTab("dans")} className={tabBtnCls("dans")}>
                   だんべつ
                 </button>
-                <button type="button" role="tab" id="kuku-stats-tab-map" aria-selected={tab === "map"} aria-controls="kuku-stats-panel-map" onClick={() => selectTab("map")} className={tabBtnCls("map")}>
+                <button type="button" role="tab" id="kuku-stats-tab-map" aria-selected={tab === "map"} aria-controls="kuku-stats-panel-map" tabIndex={tab === "map" ? 0 : -1} onClick={() => selectTab("map")} className={tabBtnCls("map")}>
                   マップ
                 </button>
-                <button type="button" role="tab" id="kuku-stats-tab-weak" aria-selected={tab === "weak"} aria-controls="kuku-stats-panel-weak" onClick={() => selectTab("weak")} className={tabBtnCls("weak")}>
+                <button type="button" role="tab" id="kuku-stats-tab-time" aria-selected={tab === "time"} aria-controls="kuku-stats-panel-time" tabIndex={tab === "time" ? 0 : -1} onClick={() => selectTab("time")} className={tabBtnCls("time")}>
+                  がんばった きろく
+                </button>
+                <button type="button" role="tab" id="kuku-stats-tab-weak" aria-selected={tab === "weak"} aria-controls="kuku-stats-panel-weak" tabIndex={tab === "weak" ? 0 : -1} onClick={() => selectTab("weak")} className={tabBtnCls("weak")}>
                   にがて
                 </button>
               </nav>
 
-              {/* 履歴 0 件のやさしい案内。マップ/にがては「未挑戦」表示で自然に空を表現するため条件外。 */}
-              {!hasData && tab !== "map" && (
+              {/* 履歴 0 件のやさしい案内。マップ / がんばったきろく は「未挑戦」表示で自然に空を表現するため条件外。 */}
+              {!hasData && tab !== "map" && tab !== "time" && (
                 <section className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-8 text-center">
                   <p className="text-5xl leading-none" aria-hidden="true">🐣</p>
                   <p className="mt-3 text-xl text-slate-700">まだ データが ありません</p>
@@ -3503,6 +3695,219 @@
                       )}
                     </div>
                   )}
+                </section>
+              )}
+
+              {/* ── がんばった きろく (v1.1.0 §8.8) ──
+                  マップ側とは **意図的にデータ表現を分離** (C12-02 UX 毀損回避): マップは習熟度 5 階調、
+                  こちらは時間。9×9 グリッドの形は同じだがセルに表示する値は avg (秒) で、到達セルのみ
+                  bg-emerald-50 / border-emerald-200 の薄ミント。未達セルに派手な演出は付けない。
+                  詳細カード: 横棒グラフ + 「だいたい ○びょう」 + 3 種類のバッジ + per-cell サンプル下限。 */}
+              {tab === "time" && (
+                <section
+                  id="kuku-stats-panel-time"
+                  role="tabpanel"
+                  aria-labelledby="kuku-stats-tab-time"
+                  className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
+                >
+                  <h2 id="kuku-stats-time-title" className="text-xl font-bold text-slate-700 mb-1">
+                    がんばった きろく
+                  </h2>
+                  {/* C16-12 / C16-13: 「みずいろ」は emerald (緑寄り) との色認識齟齬があるため「みどり + ★」に変更。
+                      「-」セルと cold start の説明を足して、空欄セルが「データ不足」か「未練習」かを子供が推測できるようにする。 */}
+                  <p className="text-sm text-slate-500 mb-3">
+                    みどりの ★は「とうたつ」だよ。セルを タップすると くわしく みられるよ。
+                    「-」は まだ データが すくないよ。はじめの 3もんは ウォームアップとして かぞえないよ。
+                  </p>
+
+                  {/* 9×9 グリッド。マップ側と同じレイアウトを踏襲し、スクリーンリーダ UX の一貫性を保つ (C09-03)。
+                      セル本体の背景は「到達 (emerald) / データあり (white) / データなし (slate)」の 3 段階のみ。
+                      いずれも静的クラス文字列で三項分岐 (CLAUDE.md Tailwind 規約)。 */}
+                  <div className="overflow-x-auto">
+                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label="じかん マップ">
+                      <span aria-hidden="true" />
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
+                        return (
+                          <span key={"th-" + m} className="text-xs text-slate-500 text-center font-bold self-center" aria-hidden="true">
+                            ×{m}
+                          </span>
+                        );
+                      })}
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (dan) {
+                        return (
+                          <React.Fragment key={"trow-" + dan}>
+                            <span className="text-xs text-slate-500 text-right font-bold self-center pr-1" aria-hidden="true">
+                              {dan}の
+                            </span>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
+                              const key = dan + "-" + m;
+                              const cs = agg.cellStats[key];
+                              const hasSamples = Array.isArray(cs.responseTimes) && cs.responseTimes.length > 0;
+                              const avgMs = typeof cs.avgResponseMs === "number" ? cs.avgResponseMs : null;
+                              const reached = hasSamples && avgMs !== null && avgMs < settings.slowThresholdSec * 1000;
+                              const isSel = selectedCell === key;
+                              const avgSec = hasSamples ? (Math.round(avgMs / 100) / 10) : null;
+                              // C16-08: 色覚多様性 (deuteranopia 等) 下で bg-emerald-50 と bg-white が
+                              //   判別困難なため、reached セルは border-emerald-400 (濃い縁) に変更し、
+                              //   さらに cell 本文先頭に "★" 記号を prepend して色以外の冗長手がかりを追加する。
+                              //   aria-label の「とうたつ」と合わせて、視覚・SR の両方で非色情報を確保。
+                              //   ★ (U+2605) は一部端末で絵文字カラーフォントに寄ることがある (C07-01 既知) が、
+                              //   本用途は「色以外の冗長手がかり」なので emoji 化しても視認性を損なわない
+                              //   （むしろ黄金色化は emerald 背景とのコントラストが増して色覚多様性にも有利）。
+                              // bg 3 段階はそれぞれ完全な class 文字列で列挙 (CLAUDE.md Tailwind 規約)
+                              const baseCls = reached
+                                ? "bg-emerald-50 text-emerald-900 border-emerald-400"
+                                : hasSamples
+                                  ? "bg-white text-slate-800 border-slate-300"
+                                  : "bg-slate-100 text-slate-400 border-slate-200";
+                              const cls = isSel
+                                ? "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-xs font-bold border-2 ring-4 ring-indigo-400 focus:outline-none transition-colors tabular-nums " + baseCls
+                                : "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-xs font-bold border-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors tabular-nums " + baseCls;
+                              const aria = hasSamples
+                                ? dan + "かける" + m + "、だいたい " + avgSec + "びょう" + (reached ? "、とうたつ" : "")
+                                : dan + "かける" + m + "、まだ データなし";
+                              const cellText = hasSamples
+                                ? (reached ? "★" + avgSec : avgSec)
+                                : "-";
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setSelectedCell(isSel ? null : key)}
+                                  aria-label={aria}
+                                  aria-pressed={isSel}
+                                  className={cls}
+                                >
+                                  {cellText}
+                                </button>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 詳細カード (タップで開閉)。
+                      マップ側とは別計算（cs.responseTimes / cs.avgResponseMs / cs.responseAttempts を使う）で、
+                      習熟度ラベル (PROFICIENCY_META) は出さない。時間と習熟度の混在を避ける (C12-02)。 */}
+                  {selectedCell && (function () {
+                    const parts = selectedCell.split("-");
+                    const tDan = Number(parts[0]);
+                    const tM = Number(parts[1]);
+                    const cs = agg.cellStats[selectedCell];
+                    const times = Array.isArray(cs.responseTimes) ? cs.responseTimes : [];
+                    const avgMs = typeof cs.avgResponseMs === "number" ? cs.avgResponseMs : null;
+                    const avgSec = avgMs !== null ? (Math.round(avgMs / 100) / 10) : null;
+                    const slowBadge = Engine.isSlowAverage(avgMs, settings.slowThresholdSec);
+                    // 直近と前回平均の差 (C13-11): 直近 1 サンプル vs それ以外の平均。
+                    // responseTimes は新→古の順で最大 5 件。
+                    const latest = times.length > 0 ? times[0] : null;
+                    const older = times.slice(1);
+                    const olderAvg = older.length > 0
+                      ? older.reduce(function (a, b) { return a + b; }, 0) / older.length
+                      : null;
+                    const diffSec = (latest !== null && olderAvg !== null)
+                      ? (latest - olderAvg) / 1000
+                      : null;
+                    // C16-07: N=2 (1 vs 1 サンプル) 比較は統計的に噪音が大きいため、older が 2 件以上 (= times 3 件以上)
+                    // に到達してから praise を出す。SPEC §8.8.1 (5) C13-11「直近と前回平均の差」が「平均」を前提とする記述と整合。
+                    const praiseBadge = diffSec !== null && diffSec <= -0.3 && older.length >= 2;
+                    const praiseText = praiseBadge ? Math.abs(diffSec).toFixed(1) : null;
+                    // reached (セル背景色) と同じ判定式を詳細カード側でも再計算する。
+                    // C16-04: fewSamples メッセージは reached セルでは抑制し、「到達しているのにもっとやれ」の UX 矛盾を避ける。
+                    const reachedDetail = avgMs !== null && avgMs < settings.slowThresholdSec * 1000;
+                    // per-cell サンプル下限 (C13-07 / C16-04): 累積 responseTime 3 件未満 かつ 未到達 のセルにのみ表示。
+                    const fewSamples = cs.responseAttempts < 3 && !reachedDetail;
+                    // 棒グラフの max 幅基準: しきい値の 1.5 倍を 100% 相当にする。超過値は 100% に clamp。
+                    const barMaxMs = settings.slowThresholdSec * 1000 * 1.5;
+                    return (
+                      <div
+                        ref={detailRef}
+                        className="mt-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-200"
+                        aria-live="polite"
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-2xl font-bold text-indigo-700 tabular-nums">
+                            {tDan} × {tM} = {tDan * tM}
+                          </span>
+                          {avgSec !== null && (
+                            <span className="text-base font-bold text-slate-700">
+                              だいたい{" "}
+                              <span className="text-2xl text-indigo-700 tabular-nums">{avgSec}</span>
+                              <span className="ml-1">びょう</span>
+                            </span>
+                          )}
+                        </div>
+                        {/* C16-11: avgResponseMs は「直近最大 5 サンプルの平均」だが、
+                            responseAttempts は lifetime 累積で semantic が異なる。
+                            「直近 N 回の平均」であることを明示して、保護者が統計的信頼性を判断できるようにする。 */}
+                        {avgSec !== null && times.length > 0 && (
+                          <p className="mt-1 text-sm text-slate-500">
+                            さいきん {times.length}かいの へいきんだよ（ぜんぶで {cs.responseAttempts}かい とりくんだよ）
+                          </p>
+                        )}
+
+                        {times.length > 0 ? (
+                          <ul className="mt-3 flex flex-col gap-1" aria-label={"さいきん " + times.length + "かい の かいとう じかん"}>
+                            {times.map(function (rt, i) {
+                              const sec = Math.round(rt / 100) / 10;
+                              const widthPct = Math.min(100, (rt / barMaxMs) * 100);
+                              // i===0 が最新。配列先頭ほど新しい。
+                              return (
+                                <li key={i} className="flex items-center gap-2">
+                                  <span className="w-14 text-xs text-slate-500 shrink-0">
+                                    {/* C16-01: i=1 は「1 つ前」なので `i + "かいまえ"` が正（旧 `(i+1) + "かいまえ"` は
+                                        i=1 で「2かいまえ」になる off-by-one）。自然な日本語で「Nかいまえ」= N 回前。 */}
+                                    {i === 0 ? "さいしん" : i + "かいまえ"}
+                                  </span>
+                                  <div className="flex-1 h-4 bg-white rounded-full overflow-hidden border border-slate-200">
+                                    <div
+                                      className="h-full bg-indigo-400"
+                                      style={{ width: widthPct + "%" }}
+                                      aria-hidden="true"
+                                    />
+                                  </div>
+                                  <span className="w-14 text-right text-sm text-slate-700 tabular-nums shrink-0">
+                                    {sec}びょう
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            この もんだいの かいとう じかんは まだ きろく できていないよ
+                          </p>
+                        )}
+
+                        {(praiseBadge || slowBadge) && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {praiseBadge && (
+                              <span className="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-emerald-100 text-emerald-800 border-2 border-emerald-200">
+                                {/* C16-02: 内部計算は latest 1 サンプル vs それ以外の平均 (最大 4 件) なので
+                                    「このまえ」(単数) ではなく「さいきんの へいきん」で複数サンプル平均と整合させる。 */}
+                                さいきんの へいきんより {praiseText}びょう はやくなった！
+                              </span>
+                            )}
+                            {slowBadge && (
+                              <span className="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-amber-50 text-amber-800 border-2 border-amber-200">
+                                もう すこし はやく できるかも
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {fewSamples && (
+                          <p className="mt-3 text-sm text-slate-500">
+                            {/* C16-04: 「もっとやれ」ではなく「解くと精度が上がる」の統計的ガイダンス寄りに。
+                                reached セルでは fewSamples 自体が false になるので、この表示は未到達セル限定。 */}
+                            もう すこし もんだいを とくと もっと くわしく わかるよ
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </section>
               )}
 

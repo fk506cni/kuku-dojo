@@ -89,8 +89,11 @@ function makeSeededRandom(seed) {
  *   ResultHelpers: object, StatsHelpers: object,
  *   DEFAULT_SETTINGS: object,
  *   WRONG_WEIGHT_BOOST_PRESETS: ReadonlyArray<{value:number,label:string,desc:string}>,
+ *   SLOW_THRESHOLD_PRESETS: ReadonlyArray<{value:number,label:string,desc:string}>,
  *   SESSION_LIMIT: number,
  *   STATS_RECENT_N: number,
+ *   COLD_START_COUNT: number,
+ *   STATS_RESPONSE_TIME_SAMPLES: number,
  *   localStorage: ReturnType<typeof makeFakeLocalStorage>,
  *   random: () => number,
  * }}
@@ -160,7 +163,9 @@ export function loadCore(opts = {}) {
     ENGINE_SECTION,
     HELPERS_SECTION,
     // 末尾で公開したいシンボルを return 代わりに完成式にする
-    ";({ Storage, Engine, Util, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SESSION_LIMIT, STATS_RECENT_N });",
+    // 第16回 C16-09: COLD_START_COUNT / STATS_RESPONSE_TIME_SAMPLES も export し、tests 側が
+    // マジックナンバー 3 / 5 をハードコードせず、定数変更時の silent drift を防ぐ。
+    ";({ Storage, Engine, Util, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SLOW_THRESHOLD_PRESETS, SESSION_LIMIT, STATS_RECENT_N, COLD_START_COUNT, STATS_RESPONSE_TIME_SAMPLES });",
   ].join("\n");
 
   const exported = vm.runInContext(code, sandbox, { filename: "core-extracted.js" });
