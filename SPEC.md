@@ -918,6 +918,18 @@ grep -cE '^\.(border|flex|grid|hidden|block|fixed|static|table)[\s{,]' dist/kuku
 # → 0〜少数 (実際に使っているものを除く) であることを確認
 ```
 
+##### Phase A で吸収する既存定数の i18n 化（C16-10 carry-over）
+
+v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `WRONG_WEIGHT_BOOST_PRESETS` は、現状 `index.html` 内に `label` / `desc` をひらがな直書きで保持している（例: `{ value: 15, label: "のんびり", desc: "ゆっくり かんがえても だいじょうぶ" }`）。第16回 C16-10 で v1.2.0 Phase A に持ち越すと判断した残債で、Phase A 着手時に以下の構造に切り替える:
+
+- 定数側は `value` のみの配列に縮退（例: `SLOW_THRESHOLD_PRESETS = Object.freeze([15, 10, 7, 5])`）
+- 表示文言は `MESSAGES.settings.slowThreshold.<value>.label` / `.desc` 経由で `Util.t()` から取得
+- `WRONG_WEIGHT_BOOST_PRESETS` も同パターン（`MESSAGES.settings.wrongWeightBoost.<value>.label` / `.desc`）
+- aria-label の「びょう」も `Util.t("settings.slowThreshold.unit")` 化（§8.9.6 翻訳時の注意で「数値 + 単位」の連結方針を Phase A で確定）
+- 工数見積: 約 30 分（型変更とハードコード文言の grep 置換のみ、ロジック変更なし）
+
+実装は Phase A の MESSAGES 抽出ステップ（prompts.md Step 12 Phase A-3「既存ハードコード文言を MESSAGES.ja に抽出」）と同じセッション内で消化する。本残債を Phase B / C に持ち越すと、英語 / 中韓越の翻訳追加と PRESETS 構造変更が同時発生して diff が混雑するため、Phase A で必ず吸収する。
+
 #### 8.9.6 翻訳時の注意
 
 - ひらがな主体 UI の tone に合わせ、英訳では子供向けの平易な単語を選ぶ（"Nice!" "Oops!" "Awesome!" 等）
