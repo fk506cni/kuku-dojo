@@ -1077,6 +1077,18 @@ grep -cE '^\.(border|flex|grid|hidden|block|fixed|static|table)[\s{,]' dist/kuku
 - **load-core.mjs sandbox 拡張の検討**: Phase A で `Util.t()` を helpers 節に追加するため、`tests/helpers/load-core.mjs` の VM 抽出対象に含まれる必要がある。helpers 節への配置を確認すること
 - 上記以外の共通注意点は **Step 12 概要「全 Phase 共通の注意点」** を参照
 
+
+### 全 Phase 共通の注意点（Step 12.A〜D で繰り返し参照）
+
+- **Babel Standalone は `import` / `export` 非対応** → `messages/ja.json` の外部分離は不可、`<script type="application/json" id="kuku-messages">` 埋込方式で固定（SPEC §8.9.5 対策 A）
+- **Tailwind CLI 誤検出（C12-08）**: `--content index.html` は正規表現で文字列リテラルを走査する。MESSAGES 内の `"border"` / `"flex"` 等の英単語が utility class として誤抽出され配布版 CSS が肥大化する。Phase A で対策 A（MESSAGES の JSON script 分離 + `scripts/build-dist.mjs` で空 JSON に置換）を恒久実装する
+- **タイトル翻訳方針（C12-18）**: タイトル本体は全言語で常に `kuku-dojo`（英字ラテン表記）。副題のみ各言語に翻訳。`"くくどうじょう"` ひらがな表記は ja のみ。各言語の副題は SPEC §8.9.2 の表から採用
+- **Tailwind 動的 class 禁止（CLAUDE.md / 第13回 C13-21）**: F2 でも `className={` + バックティック内変数展開で `text-${lang === 'ar' ? 'right' : 'left'}` のような動的構築は禁止。三項演算子の各枝に完全な class 文字列を書く
+- **ひらがな tone を英訳でも維持**: 子供向けの平易な単語を選ぶ（"Nice!" "Oops!" "Awesome!" 等）。直訳ではなく意訳でトーンを保つ
+- **README ロードマップの言語数（C12-17）**: 各 Phase 完了で README の Languages 表記を更新する責任あり。Phase A 着手前に SPEC §8.9 の 8 言語表記と整合確認
+
+
+
 ---
 
 ## Step 12.B: 英語 en 追加（Phase B / v1.2.0 リリース対象）

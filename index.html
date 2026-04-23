@@ -14,7 +14,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
-    <title>くくどうじょう</title>
+    <title>kuku-dojo</title>
 
     <!-- 絵文字ファビコン: 外部ファイル無しで「じぶんのアプリ」感を出す (C01-12) -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%90%B1%3C%2Ftext%3E%3C%2Fsvg%3E" />
@@ -105,18 +105,228 @@
       <noscript>
         <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;font-family:sans-serif">
           <div style="text-align:center">
-            <h1 style="font-size:2.5rem;color:#4338ca">くくどうじょう</h1>
+            <h1 style="font-size:2.5rem;color:#4338ca">kuku-dojo</h1>
             <p style="margin-top:1rem;color:#475569">このアプリを つかうには JavaScript を ゆうこうにしてね</p>
           </div>
         </main>
       </noscript>
       <main class="min-h-screen flex items-center justify-center p-8">
         <div class="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100 text-center">
-          <h1 class="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">くくどうじょう</h1>
+          <h1 class="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">kuku-dojo</h1>
           <p class="mt-4 text-lg text-slate-600">よみこみちゅう…</p>
         </div>
       </main>
     </div>
+
+    <!-- MESSAGES: I18n 辞書 (SPEC §8.9.5 対策 A / v1.2.0 Phase A)。
+         Babel Standalone は import/export 非対応のため外部 JSON 化できず、本タグに埋込む。
+         `<script type="application/json">` 分離で Tailwind CLI 誤検出 (C12-08) を回避する
+         設計 (scripts/build-dist.mjs が CLI 呼出前に本タグを空 JSON に置換)。Play CDN JIT が
+         本タグを走査して dev 版 CSS に孤立 utility rule を生成する挙動は A-0 で実測確認済 /
+         ただし孤立 rule は描画影響ゼロのため blocklist 併用はスキップ (Phase A 判断)。 -->
+    <script type="application/json" id="kuku-messages">
+{"ja":{
+"app.title":"kuku-dojo",
+"app.subtitle":"九九どうじょう — かけざんを たのしく おぼえよう",
+"storage.error.saveFailed":"ほぞん できなかったよ",
+"storage.error.privateMode":"このブラウザでは せいせきが ほぞん できません",
+"settings.wrongWeightBoost.0.5.label":"ひかえめ",
+"settings.wrongWeightBoost.0.5.desc":"まちがえても ちょっとだけ でやすくなる",
+"settings.wrongWeightBoost.1.label":"ふつう",
+"settings.wrongWeightBoost.1.desc":"まちがえた もんだいが でやすくなる (きじゅん)",
+"settings.wrongWeightBoost.2.label":"しっかり",
+"settings.wrongWeightBoost.2.desc":"まちがえた もんだいが たくさん でやすくなる",
+"settings.slowThreshold.15.label":"のんびり",
+"settings.slowThreshold.15.desc":"ゆっくり かんがえても だいじょうぶ",
+"settings.slowThreshold.10.label":"ふつう",
+"settings.slowThreshold.10.desc":"いつもの ペースで こたえよう (きじゅん)",
+"settings.slowThreshold.7.label":"きびきび",
+"settings.slowThreshold.7.desc":"ちょっと はやめに こたえよう",
+"settings.slowThreshold.5.label":"たつじん",
+"settings.slowThreshold.5.desc":"すごく はやく こたえよう (ちょうせん)",
+"settings.slowThreshold.unit":"びょう",
+"app.banner.close":"おしらせを とじる",
+"login.lastPlayed.none":"まだ あそんでないよ",
+"login.lastPlayed.today":"きょう あそんだよ",
+"login.lastPlayed.yesterday":"きのう あそんだよ",
+"login.lastPlayed.nDaysAgo":"{n}にちまえ",
+"login.lastPlayed.dateFormat":"{month}がつ{day}にち",
+"login.accountCard.ariaLabel":"{name} で はじめる",
+"login.createModal.title":"あたらしく つくろう",
+"login.createModal.nameLabel":"なまえ（10もじまで）",
+"login.createModal.namePlaceholder":"ひらがなで かいてね",
+"login.createModal.tooLong":"ちょっと ながすぎるよ",
+"login.createModal.duplicate":"おなじ なまえの ひとが いるよ",
+"login.createModal.empty":"なまえを かいてね",
+"login.createModal.avatarLegend":"えを えらんでね",
+"login.createModal.avatarAriaLabel":"え {n}",
+"login.createModal.cancel":"やめる",
+"login.createModal.submit":"けってい",
+"login.chooseChild":"あそぶ こを えらんでね",
+"login.empty.line1":"まだ だれも いないよ。",
+"login.empty.line2":"したの ボタンから はじめよう！",
+"login.createButton":"＋ あたらしくつくる",
+"welcome.title":"くくどうじょうへ ようこそ！",
+"welcome.line1":"せいせきは この ブラウザに ほぞんされるよ。",
+"welcome.line2":"ブラウザの おそうじや ひみつモードで あそぶと、",
+"welcome.line3":"せいせきが きえることが あるから ちゅういしてね。",
+"welcome.dismiss":"わかったよ",
+"settings.title":"せってい",
+"settings.sound.label":"おと",
+"settings.sound.on":"オン",
+"settings.sound.off":"オフ",
+"settings.effects.label":"エフェクト",
+"settings.volume.label":"おんりょう",
+"settings.advanced.toggle":"くわしい せってい",
+"settings.wrongWeightBoost.label":"にがて もんだい",
+"settings.wrongWeightBoost.subLabel":"でやすさ",
+"settings.wrongWeightBoost.description":"まちがえた もんだいの でやすさを かえるよ",
+"settings.slowThreshold.label":"じかんもくひょう",
+"settings.slowThreshold.subLabel":"はやさ",
+"settings.slowThreshold.description":"これより はやく こたえられたら「とうたつ」だよ",
+"settings.close":"とじる",
+"settings.deleteAccount":"アカウントを さくじょ",
+"delete.title":"ほんとうに けす？",
+"delete.desc.line1":"「{name}」の せいせきも",
+"delete.desc.line2":"ぜんぶ きえちゃうよ",
+"delete.cancel":"やめる",
+"delete.confirm":"けす",
+"home.greeting":"{name}さん、こんにちは！",
+"home.logout":"ログアウト",
+"home.danLegend":"どのだんを れんしゅうする？",
+"home.danButton":"{dan}のだん",
+"home.selectAllDans":"ぜんぶ",
+"home.selectDanHint":"だんを ひとつ いじょう えらんでね",
+"home.countLegend":"なんもん やる？",
+"home.countUnit":"もん",
+"home.countAriaLabel":"もんだいの かず",
+"home.start":"はじめる",
+"home.stats":"せいせき",
+"quiz.combo.3":"すごい！",
+"quiz.combo.5":"{combo}れんぞく すごい！",
+"quiz.combo.7":"{combo}れんぞく さいこう！",
+"quiz.combo.10":"{combo}れんぞく てんさい！",
+"quiz.combo.15":"{combo}れんぞく かんぺき！",
+"quiz.combo.20":"{combo}れんぞく でんせつ！",
+"quiz.encourage":"いっしょに がんばろう",
+"quiz.pause.title":"ちゅうだん しますか？",
+"quiz.pause.desc":"とちゅうの せいせきは のこらないよ",
+"quiz.pause.continue":"つづける",
+"quiz.pause.quit":"やめる",
+"quiz.header.progress":"もんだい {current} / {total}",
+"quiz.pauseButton":"ちゅうだん",
+"quiz.progress.ariaLabel":"しんちょく",
+"quiz.feedback.correct":"○ せいかい！",
+"quiz.feedback.wrong":"× おしいっ",
+"quiz.feedback.wrong.answerPrefix":"こたえは",
+"quiz.feedback.wrong.answerSuffix":"だよ",
+"quiz.next":"つぎへ",
+"quiz.keypad.ariaLabel":"テンキー",
+"quiz.keypad.delete":"けす",
+"quiz.keypad.submit":"こたえる",
+"result.redirect":"ホームへ もどるよ…",
+"result.announce.high":"すごい！ {correct} / {total} もん せいかい！",
+"result.announce.mid":"{correct} / {total} もん できたよ！",
+"result.announce.low":"{correct} / {total} もん できたね！ つぎも いっしょに がんばろう",
+"result.title":"けっか はっぴょう",
+"result.score.sr":"スコア",
+"result.correctRate":"せいかいりつ",
+"result.elapsed":"じかん",
+"result.stars.ariaLabel":"ほし {n} こ",
+"result.diff.improved.prefix":"まえより",
+"result.diff.improved.suffix":"あがった！",
+"result.diff.worse.prefix":"まえより",
+"result.diff.worse.suffix":"もうちょっと！",
+"result.diff.same":"まえと おなじくらい がんばった！",
+"result.wrong.title":"まちがえた もんだい",
+"result.wrong.allCorrect":"ぜんぶ せいかい！すごいね！",
+"result.wrong.missing":"きろくの いちぶが みつからないよ",
+"result.wrong.userAnswer.label":"きみ",
+"result.wrong.correctAnswer.label":"せいかい",
+"result.retry.button":"もういちど",
+"result.retry.allDans":"ぜんぶの だん",
+"result.retry.selectedDans":"{dans}の だん",
+"result.retry.summary":"{danLabel} / {total}もん",
+"result.home.button":"ホームへ",
+"result.home.subtitle":"だんを えらびなおす",
+"proficiency.0.label":"みちょうせん",
+"proficiency.1.label":"にがて",
+"proficiency.2.label":"もうすこし",
+"proficiency.3.label":"まあまあ",
+"proficiency.4.label":"とくい",
+"stats.header.title":"{name}さんの せいせき",
+"stats.header.back":"もどる",
+"stats.tabs.ariaLabel":"せいせき カテゴリ",
+"stats.tabs.history":"れきし",
+"stats.tabs.dans":"だんべつ",
+"stats.tabs.map":"マップ",
+"stats.tabs.time":"がんばった きろく",
+"stats.tabs.weak":"にがて",
+"stats.empty.title":"まだ データが ありません",
+"stats.empty.hint":"ホームから 1かい あそんでみよう！",
+"stats.history.title":"プレイ りれき",
+"stats.history.order":"（あたらしい じゅん）",
+"stats.history.row":"{correct} / {total} もん",
+"stats.dans.title":"だんべつ せいかいりつ",
+"stats.dans.danLabel":"{dan}の だん",
+"stats.dans.bar.aria.noData":"{dan}のだん せいかいりつ データなし",
+"stats.dans.bar.aria.percent":"{dan}のだん せいかいりつ {rate}パーセント",
+"stats.dans.noData":"まだ",
+"stats.map.title":"しゅうじゅくど マップ",
+"stats.map.desc":"さいきんの {n}かいの けっかで いろわけしているよ",
+"stats.map.grid.aria":"しゅうじゅくど マップ",
+"stats.map.axis.dan":"{dan}の",
+"stats.map.cell.aria":"{dan}かける{m}は{product}、{label}",
+"stats.map.detail.weightLabel":"おもさ",
+"stats.map.detail.correctLabel":"せいかい",
+"stats.map.detail.wrongLabel":"まちがい",
+"stats.map.detail.countUnit":"{n}かい",
+"stats.map.detail.noRecent":"この もんだいは さいきんの {n}かいでは まだ でていないよ",
+"stats.time.title":"がんばった きろく",
+"stats.time.desc.line1":"みどりの ★は「とうたつ」だよ。セルを タップすると くわしく みられるよ。",
+"stats.time.desc.line2":"「-」は まだ データが すくないよ。はじめの 3もんは ウォームアップとして かぞえないよ。",
+"stats.time.grid.aria":"じかん マップ",
+"stats.time.cell.aria.reached":"{dan}かける{m}、だいたい {sec}びょう、とうたつ",
+"stats.time.cell.aria.normal":"{dan}かける{m}、だいたい {sec}びょう",
+"stats.time.cell.aria.noData":"{dan}かける{m}、まだ データなし",
+"stats.time.detail.avgPrefix":"だいたい",
+"stats.time.detail.avgUnit":"びょう",
+"stats.time.detail.avgInfo":"さいきん {n}かいの へいきんだよ（ぜんぶで {total}かい とりくんだよ）",
+"stats.time.detail.list.aria":"さいきん {n}かい の かいとう じかん",
+"stats.time.detail.latest":"さいしん",
+"stats.time.detail.nAgo":"{n}かいまえ",
+"stats.time.detail.secUnit":"びょう",
+"stats.time.detail.noRecords":"この もんだいの かいとう じかんは まだ きろく できていないよ",
+"stats.time.detail.praise":"さいきんの へいきんより {sec}びょう はやくなった！",
+"stats.time.detail.slow":"もう すこし はやく できるかも",
+"stats.time.detail.fewSamples":"もう すこし もんだいを とくと もっと くわしく わかるよ",
+"stats.weak.title":"にがて ワースト 5",
+"stats.weak.empty.line1":"まだ にがてな もんだいは ないよ！",
+"stats.weak.empty.line2":"この ちょうしで がんばろう！",
+"stats.weak.hint":"いっしょに がんばろう！",
+"stats.weak.weightLabel":"おもさ",
+"stats.weak.stats":"せいかい {correct}/{attempts}",
+"stats.weak.noData":"まだ データなし",
+"mascot.aria.happy":"うれしい くくちゃん",
+"mascot.aria.sad":"しょんぼり くくちゃん",
+"mascot.aria.celebrate":"おおよろこびの くくちゃん",
+"mascot.aria.thinking":"かんがえてる くくちゃん",
+"mascot.aria.default":"くくちゃん",
+"combo.ariaLabel":"れんぞく せいかい {combo}かい",
+"combo.label":"コンボ",
+"settings.lang.label":"げんご",
+"settings.lang.description":"ひょうじする ことばを えらぶよ",
+"settings.lang.auto":"じどう",
+"settings.lang.name.ja":"にほんご",
+"settings.lang.name.en":"English",
+"settings.lang.name.zh-CN":"简体中文",
+"settings.lang.name.zh-TW":"繁體中文",
+"settings.lang.name.ko":"한국어",
+"settings.lang.name.vi":"Tiếng Việt",
+"settings.lang.name.es":"Español",
+"settings.lang.name.pt-BR":"Português (BR)"
+}}
+    </script>
 
     <script type="text/babel" data-presets="react">
       // 起動時間ベースライン計測の開始点 (SPEC.md §6.1 / C01-02)
@@ -170,6 +380,9 @@
        *                                            0.5 (ひかえめ) / 1.0 (ふつう、既定) / 2.0 (しっかり)
        * @property {number}  slowThresholdSec    - (v1.1.0 追加 / §8.8) 遅い回答バッジのしきい値 (秒)。
        *                                            15 (のんびり) / 10 (ふつう、既定) / 7 (きびきび) / 5 (たつじん)
+       * @property {"auto"|"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"|"es"|"pt-BR"} lang
+       *   - (v1.2.0 追加 / §8.9) UI 言語。"auto" はブラウザ検出 (detectLang)、それ以外は手動 override。
+       *   - 値域外 (古い Settings / 手編集 / 未知の言語コード) は loadSettings で "auto" に正規化 (§8.9.9)。
        */
 
       /**
@@ -192,26 +405,83 @@
         });
       }
 
-      const Util = { uuid };
+      // I18n namespace (SPEC §8.9.5 対策 A / v1.2.0 Phase A)。
+      // MESSAGES は `<script type="application/json" id="kuku-messages">` から読み込む。
+      // tests/helpers/load-core.mjs の VM sandbox には document が存在しないため typeof ガードで
+      // 空辞書 fallback する。current は A-6 の detectLang() で確定後に代入する (C13-15)。
+      const I18n = {
+        messages: (typeof document !== "undefined" && document.getElementById)
+          ? JSON.parse(document.getElementById("kuku-messages").textContent)
+          : { ja: {} },
+        current: null,
+      };
+
+      /**
+       * ブラウザの言語設定から実効言語 (SUPPORTED_LANGS から "auto" を除いた 8 値) を決定する。
+       * SPEC §8.9.3 / C12-19 (navigator.languages の undefined / 空文字列ガード)。
+       * - navigator.languages[] を先に走査、無ければ [navigator.language || "ja"]
+       * - zh-HK/zh-MO → zh-TW, zh-SG → zh-CN, pt-PT → pt-BR の派生フォールバック
+       * - 完全一致 → base 部分一致 の順で採用、最終的に ja フォールバック
+       * @returns {"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"|"es"|"pt-BR"}
+       */
+      function detectLang() {
+        const SUPPORTED = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi", "es", "pt-BR"];
+        const FALLBACKS = { "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN", "pt-PT": "pt-BR" };
+        const nav = (typeof navigator !== "undefined") ? navigator : {};
+        const raws = Array.isArray(nav.languages) && nav.languages.length > 0
+          ? nav.languages
+          : [nav.language || "ja"];
+        for (let i = 0; i < raws.length; i++) {
+          const raw = raws[i];
+          // C12-19: raw が string 以外 (undefined / null / 数値) の混入に対する防御
+          if (typeof raw !== "string" || raw === "") continue;
+          const tag = FALLBACKS[raw] || raw;
+          if (SUPPORTED.indexOf(tag) !== -1) return tag;
+          const base = tag.split("-")[0];
+          if (SUPPORTED.indexOf(base) !== -1) return base;
+        }
+        return "ja";
+      }
+
+      const Util = {
+        uuid,
+        detectLang,
+        /**
+         * MESSAGES から翻訳文字列を取得する (v1.2.0 Phase A / SPEC §8.9.5)。
+         * フォールバック順: I18n.current の辞書 → ja → key 文字列そのまま。
+         * params は `{name}` プレースホルダ置換。数値は呼出側で `toFixed` / `toLocaleString` 等で
+         * 文字列化してから渡す (SPEC §8.9.4 / C13-11)。
+         * @param {string} key - ドット区切り (例: "quiz.correct")
+         * @param {Record<string, string|number>} [params]
+         * @returns {string}
+         */
+        t(key, params) {
+          const lang = I18n.current || "ja";
+          const dict = I18n.messages[lang] || I18n.messages.ja;
+          let s = (dict && dict[key]) || (I18n.messages.ja && I18n.messages.ja[key]) || key;
+          if (params) {
+            for (const [k, v] of Object.entries(params)) s = s.split("{" + k + "}").join(String(v));
+          }
+          return s;
+        },
+      };
 
       /** @type {Settings} */
-      const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0, slowThresholdSec: 10 });
-      // 3 段プリセット。WRONG_WEIGHT_BOOST_PRESETS の順は UI 表示順と一致させる (ひかえめ → ふつう → しっかり)。
-      const WRONG_WEIGHT_BOOST_PRESETS = Object.freeze([
-        { value: 0.5, label: "ひかえめ",   desc: "まちがえても ちょっとだけ でやすくなる" },
-        { value: 1.0, label: "ふつう",     desc: "まちがえた もんだいが でやすくなる (きじゅん)" },
-        { value: 2.0, label: "しっかり",   desc: "まちがえた もんだいが たくさん でやすくなる" },
-      ]);
-      // v1.1.0 §8.8 / prompts.md Step 11 実装対象 1。SLOW_THRESHOLD_PRESETS の順は UI 表示順と一致
+      const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0, slowThresholdSec: 10, lang: "auto" });
+      // v1.2.0 Phase A / SPEC §8.9.9: Settings.lang の許容値。"auto" を含む 9 値。
+      // detectLang() は "auto" を返さない (8 値 / §8.9.3) — 両者は意味が異なるので分離維持する。
+      const SUPPORTED_LANGS = Object.freeze(["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi", "es", "pt-BR"]);
+      // 3 段プリセット。順は UI 表示順 (ひかえめ → ふつう → しっかり)。
+      // v1.2.0 Phase A (C16-10): value のみ保持し、表示ラベル/説明は
+      // MESSAGES.ja.settings.wrongWeightBoost.{value}.{label|desc} で引く。
+      // String(1.0) === "1" / String(2.0) === "2" の JS 挙動に依拠し MESSAGES key は "0.5"/"1"/"2"。
+      const WRONG_WEIGHT_BOOST_PRESETS = Object.freeze([0.5, 1.0, 2.0]);
+      // v1.1.0 §8.8 / prompts.md Step 11 実装対象 1。順は UI 表示順
       // (のんびり → ふつう → きびきび → たつじん)。3 秒プリセットは第13回で廃止（保護者押し付け
       // リスク + 物理達成困難で C13-09 / C13-22 承認）。「たつじん」到達時は Stats 画面でミント背景
       // のみ表示し、未達でもペナルティは発生しない（SPEC §8.8.1 (5) ペナルティなし方針）。
-      const SLOW_THRESHOLD_PRESETS = Object.freeze([
-        { value: 15, label: "のんびり",   desc: "ゆっくり かんがえても だいじょうぶ" },
-        { value: 10, label: "ふつう",     desc: "いつもの ペースで こたえよう (きじゅん)" },
-        { value: 7,  label: "きびきび",   desc: "ちょっと はやめに こたえよう" },
-        { value: 5,  label: "たつじん",   desc: "すごく はやく こたえよう (ちょうせん)" },
-      ]);
+      // v1.2.0 Phase A (C16-10): value のみ保持、表示は MESSAGES.ja.settings.slowThreshold.{value}.{...}。
+      const SLOW_THRESHOLD_PRESETS = Object.freeze([15, 10, 7, 5]);
       const SESSION_LIMIT = 100;
       const QUOTA_TRIM_COUNT = 10;
 
@@ -261,11 +531,11 @@
               } catch (_) {}
             }
             console.warn("[kuku-dojo] storage: quota exceeded, retry failed:", key);
-            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            if (Storage._onStorageError) Storage._onStorageError(Util.t("storage.error.saveFailed"));
             return false;
           }
           console.warn("[kuku-dojo] storage: write failed:", key, e.message);
-          if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+          if (Storage._onStorageError) Storage._onStorageError(Util.t("storage.error.saveFailed"));
           return false;
         }
       }
@@ -325,7 +595,7 @@
             Storage._available = false;
             console.warn("[kuku-dojo] storage: not available (private browsing?)", e.message);
             if (Storage._onStorageError) {
-              Storage._onStorageError("このブラウザでは せいせきが ほぞん できません");
+              Storage._onStorageError(Util.t("storage.error.privateMode"));
             }
           }
           return Storage._available;
@@ -370,7 +640,7 @@
             return true;
           } catch (e) {
             console.warn("[kuku-dojo] storage: cannot write current account id:", e.message);
-            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            if (Storage._onStorageError) Storage._onStorageError(Util.t("storage.error.saveFailed"));
             return false;
           }
         },
@@ -425,7 +695,7 @@
             return _writeJSON("kuku_sessions_" + accountId, reduced, accountId);
           } catch (e) {
             console.warn("[kuku-dojo] storage: saveSessions failed:", e.message);
-            if (Storage._onStorageError) Storage._onStorageError("ほぞん できなかったよ");
+            if (Storage._onStorageError) Storage._onStorageError(Util.t("storage.error.saveFailed"));
             return false;
           }
         },
@@ -444,16 +714,22 @@
           const merged = { ...DEFAULT_SETTINGS, ...raw };
           // C11-06: wrongWeightBoost が 3 プリセット (0.5/1.0/2.0) 外のときは 1.0 (ふつう) に正規化。
           // localStorage 手編集で 1.5 等が入ると SettingsModal の 3 ボタンが全非選択になる UX 退行を防ぐ。
-          const presetValues = WRONG_WEIGHT_BOOST_PRESETS.map(function (p) { return p.value; });
-          if (presetValues.indexOf(merged.wrongWeightBoost) === -1) {
+          // v1.2.0 Phase A: PRESETS は [value,...] に縮退したため map 不要で直接参照。
+          if (WRONG_WEIGHT_BOOST_PRESETS.indexOf(merged.wrongWeightBoost) === -1) {
             merged.wrongWeightBoost = DEFAULT_SETTINGS.wrongWeightBoost;
           }
           // v1.1.0 §8.8.2 / C12-21: slowThresholdSec も 4 プリセット外 (旧 3 秒 / 手編集 / 文字列) は
           // 10 (ふつう) に正規化。v1.0.x → v1.1.0 の前方互換マイグレは {...DEFAULT_SETTINGS, ...raw}
           // のスプレッドで欠損補完されるため、ここは「プリセット外値の正規化」のみ担う。
-          const slowPresetValues = SLOW_THRESHOLD_PRESETS.map(function (p) { return p.value; });
+          const slowPresetValues = SLOW_THRESHOLD_PRESETS;
           if (slowPresetValues.indexOf(merged.slowThresholdSec) === -1) {
             merged.slowThresholdSec = DEFAULT_SETTINGS.slowThresholdSec;
+          }
+          // v1.2.0 Phase A (SPEC §8.9.9): lang も SUPPORTED_LANGS 外 (未知言語コード / 手編集 / 型不正)
+          // は "auto" に正規化。v1.0.x / v1.1.0 → v1.2.0 の前方互換マイグレは DEFAULT_SETTINGS の
+          // lang:"auto" スプレッド補完で自動的に埋まる。ここは「値域外の正規化」を担う。
+          if (SUPPORTED_LANGS.indexOf(merged.lang) === -1) {
+            merged.lang = DEFAULT_SETTINGS.lang;
           }
           return merged;
         },
@@ -1216,11 +1492,11 @@
             style={animStyle}
             role="img"
             aria-label={
-              displayed === "happy" ? "うれしい くくちゃん"
-              : displayed === "sad" ? "しょんぼり くくちゃん"
-              : displayed === "celebrate" ? "おおよろこびの くくちゃん"
-              : displayed === "thinking" ? "かんがえてる くくちゃん"
-              : "くくちゃん"
+              displayed === "happy" ? Util.t("mascot.aria.happy")
+              : displayed === "sad" ? Util.t("mascot.aria.sad")
+              : displayed === "celebrate" ? Util.t("mascot.aria.celebrate")
+              : displayed === "thinking" ? Util.t("mascot.aria.thinking")
+              : Util.t("mascot.aria.default")
             }
           >
             {MASCOT_EMOJI}
@@ -1240,11 +1516,11 @@
           <div
             key={combo}
             aria-live="polite"
-            aria-label={"れんぞく せいかい " + combo + "かい"}
+            aria-label={Util.t("combo.ariaLabel", { combo })}
             className="fixed top-3 right-3 z-30 flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-100/90 border-2 border-amber-300 shadow-md pointer-events-none"
             style={{ animation: "kuku-combo-pop 0.4s ease-out 1" }}
           >
-            <span className="text-amber-700 text-sm font-bold">コンボ</span>
+            <span className="text-amber-700 text-sm font-bold">{Util.t("combo.label")}</span>
             <span className="text-amber-800 text-2xl font-bold tabular-nums">× {combo}</span>
           </div>
         );
@@ -1401,7 +1677,7 @@
           <main className="min-h-screen flex flex-col items-center justify-center p-8">
             <div className="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100">
               <h1 className="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide text-center">
-                くくどうじょう
+                {Util.t("app.title")}
               </h1>
               <p className="mt-6 text-2xl text-slate-700 text-center">{title}</p>
               <p className="mt-2 text-sm text-slate-500 text-center">{stepHint}</p>
@@ -1445,19 +1721,19 @@
          */
         formatLastPlayed(timestamp) {
           if (timestamp === null || timestamp === undefined || !Number.isFinite(timestamp)) {
-            return "まだ あそんでないよ";
+            return Util.t("login.lastPlayed.none");
           }
           const d = new Date(timestamp);
-          if (Number.isNaN(d.getTime())) return "まだ あそんでないよ";
+          if (Number.isNaN(d.getTime())) return Util.t("login.lastPlayed.none");
           const now = new Date();
           const dayMs = 24 * 60 * 60 * 1000;
           const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
           const diff = Math.floor((startOf(now) - startOf(d)) / dayMs);
           // diff < 0 (未来) は端末時計ずれの補正として「きょう」にクランプ (C04-13)
-          if (diff <= 0) return "きょう あそんだよ";
-          if (diff === 1) return "きのう あそんだよ";
-          if (diff < 7) return diff + "にちまえ";
-          return (d.getMonth() + 1) + "がつ" + d.getDate() + "にち";
+          if (diff <= 0) return Util.t("login.lastPlayed.today");
+          if (diff === 1) return Util.t("login.lastPlayed.yesterday");
+          if (diff < 7) return Util.t("login.lastPlayed.nDaysAgo", { n: diff });
+          return Util.t("login.lastPlayed.dateFormat", { month: d.getMonth() + 1, day: d.getDate() });
         },
       };
 
@@ -1489,7 +1765,7 @@
               onClick={onSelect}
               autoFocus={autoFocus}
               className="w-full min-h-[96px] bg-white rounded-2xl shadow-md hover:shadow-lg hover:bg-indigo-50 border border-indigo-100 p-4 flex items-center gap-4 focus:outline-none focus:ring-4 focus:ring-indigo-300 text-left transition-shadow"
-              aria-label={account.name + " で はじめる"}
+              aria-label={Util.t("login.accountCard.ariaLabel", { name: account.name })}
             >
               <span className="text-5xl leading-none" aria-hidden="true">
                 {LoginHelpers.avatarOf(account.avatarIndex)}
@@ -1556,13 +1832,13 @@
         let hintText = "\u00A0"; // 固定高さ維持用の非改行スペース
         let hintClass = "text-slate-500";
         if (tooLong) {
-          hintText = "ちょっと ながすぎるよ";
+          hintText = Util.t("login.createModal.tooLong");
           hintClass = "text-rose-600";
         } else if (isDuplicate) {
-          hintText = "おなじ なまえの ひとが いるよ";
+          hintText = Util.t("login.createModal.duplicate");
           hintClass = "text-rose-600";
         } else if (isEmpty) {
-          hintText = "なまえを かいてね";
+          hintText = Util.t("login.createModal.empty");
         }
 
         return (
@@ -1578,12 +1854,12 @@
               className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6"
             >
               <h2 id="kuku-create-title" className="text-2xl font-bold text-indigo-700 text-center">
-                あたらしく つくろう
+                {Util.t("login.createModal.title")}
               </h2>
 
               <div className="mt-6">
                 <label className="block text-base font-bold text-slate-700 mb-2" htmlFor="kuku-name-input">
-                  なまえ（10もじまで）
+                  {Util.t("login.createModal.nameLabel")}
                 </label>
                 <input
                   id="kuku-name-input"
@@ -1598,7 +1874,7 @@
                     setName(e.target.value);
                   }}
                   maxLength={10}
-                  placeholder="ひらがなで かいてね"
+                  placeholder={Util.t("login.createModal.namePlaceholder")}
                   className="w-full min-h-[48px] px-4 py-3 text-xl border-2 border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
                   autoFocus
                   autoComplete="off"
@@ -1621,7 +1897,7 @@
 
               <fieldset className="mt-4" role="radiogroup" aria-labelledby="kuku-avatar-legend">
                 <legend id="kuku-avatar-legend" className="block text-base font-bold text-slate-700 mb-2">
-                  えを えらんでね
+                  {Util.t("login.createModal.avatarLegend")}
                 </legend>
                 <div className="grid grid-cols-4 gap-2">
                   {LOGIN_AVATARS.map((emoji, i) => (
@@ -1631,7 +1907,7 @@
                       onClick={() => setAvatarIndex(i)}
                       role="radio"
                       aria-checked={avatarIndex === i}
-                      aria-label={"え " + (i + 1)}
+                      aria-label={Util.t("login.createModal.avatarAriaLabel", { n: i + 1 })}
                       className={
                         avatarIndex === i
                           ? "min-h-[56px] min-w-[48px] text-4xl rounded-xl border-4 border-indigo-500 bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
@@ -1650,7 +1926,7 @@
                   onClick={onCancel}
                   className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300"
                 >
-                  やめる
+                  {Util.t("login.createModal.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -1661,7 +1937,7 @@
                       : "flex-1 min-h-[48px] px-4 py-3 bg-indigo-200 text-white font-bold rounded-xl cursor-not-allowed"
                   }
                 >
-                  けってい
+                  {Util.t("login.createModal.submit")}
                 </button>
               </div>
             </form>
@@ -1705,16 +1981,16 @@
             <header className="text-center mb-8">
               <div className="text-7xl md:text-8xl leading-none" aria-hidden="true">🐱</div>
               <h1 className="mt-4 text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">
-                くくどうじょう
+                {Util.t("app.title")}
               </h1>
-              <p className="mt-3 text-lg text-slate-600">あそぶ こを えらんでね</p>
+              <p className="mt-3 text-lg text-slate-600">{Util.t("login.chooseChild")}</p>
             </header>
 
             <section className="w-full max-w-3xl">
               {accounts.length === 0 ? (
                 <div className="bg-white/70 backdrop-blur rounded-2xl border border-indigo-100 p-6 text-center text-slate-600 text-lg">
-                  まだ だれも いないよ。<br />
-                  したの ボタンから はじめよう！
+                  {Util.t("login.empty.line1")}<br />
+                  {Util.t("login.empty.line2")}
                 </div>
               ) : (
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1740,7 +2016,7 @@
                   autoFocus={accounts.length === 0}
                   className="min-h-[56px] px-10 py-4 bg-indigo-600 text-white text-xl font-bold rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
                 >
-                  ＋ あたらしくつくる
+                  {Util.t("login.createButton")}
                 </button>
               </div>
             </section>
@@ -1808,23 +2084,23 @@
           >
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
               <h2 id="kuku-settings-title" className="text-2xl font-bold text-indigo-700 text-center">
-                せってい
+                {Util.t("settings.title")}
               </h2>
 
               <div className="mt-6 space-y-5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-slate-700">おと</span>
+                  <span className="text-xl font-bold text-slate-700">{Util.t("settings.sound.label")}</span>
                   <div className="flex items-center gap-3">
                     {/* 色覚多様性配慮: 色と位置だけでなく文字でも ON/OFF を示す (C05-17)。
                         aria-checked でスクリーンリーダ読み上げは十分なので aria-hidden="true" */}
                     <span className="text-sm font-bold w-8 text-right text-slate-600" aria-hidden="true">
-                      {settings.soundEnabled ? "オン" : "オフ"}
+                      {settings.soundEnabled ? Util.t("settings.sound.on") : Util.t("settings.sound.off")}
                     </span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={settings.soundEnabled}
-                    aria-label="おと"
+                    aria-label={Util.t("settings.sound.label")}
                     onClick={() => toggle("soundEnabled")}
                     className={
                       settings.soundEnabled
@@ -1845,16 +2121,16 @@
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-slate-700">エフェクト</span>
+                  <span className="text-xl font-bold text-slate-700">{Util.t("settings.effects.label")}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold w-8 text-right text-slate-600" aria-hidden="true">
-                      {settings.effectsEnabled ? "オン" : "オフ"}
+                      {settings.effectsEnabled ? Util.t("settings.sound.on") : Util.t("settings.sound.off")}
                     </span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={settings.effectsEnabled}
-                    aria-label="エフェクト"
+                    aria-label={Util.t("settings.effects.label")}
                     onClick={() => toggle("effectsEnabled")}
                     className={
                       settings.effectsEnabled
@@ -1877,7 +2153,7 @@
                 <div>
                   <div className="flex items-center justify-between">
                     <label htmlFor="kuku-volume-input" className="text-xl font-bold text-slate-700">
-                      おんりょう
+                      {Util.t("settings.volume.label")}
                     </label>
                     <span className="text-slate-500 text-sm">{Math.round(draftVolume * 100)}%</span>
                   </div>
@@ -1911,7 +2187,7 @@
                   onClick={() => setAdvancedOpen((v) => !v)}
                   className="w-full min-h-[48px] px-4 py-3 bg-white text-slate-700 font-bold rounded-xl border-2 border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 flex items-center justify-between"
                 >
-                  <span>くわしい せってい</span>
+                  <span>{Util.t("settings.advanced.toggle")}</span>
                   <span aria-hidden="true" className="text-slate-500">{advancedOpen ? "▲" : "▼"}</span>
                 </button>
 
@@ -1922,12 +2198,12 @@
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <span id="kuku-boost-label" className="text-xl font-bold text-slate-700">
-                          にがて もんだい
+                          {Util.t("settings.wrongWeightBoost.label")}
                         </span>
-                        <span className="text-slate-500 text-sm">でやすさ</span>
+                        <span className="text-slate-500 text-sm">{Util.t("settings.wrongWeightBoost.subLabel")}</span>
                       </div>
                       <p className="mt-1 text-sm text-slate-500 leading-relaxed">
-                        まちがえた もんだいの でやすさを かえるよ
+                        {Util.t("settings.wrongWeightBoost.description")}
                       </p>
                       {/* C11-05: WAI-ARIA radiogroup pattern に沿い Arrow キー切替 + roving tabindex。
                           - Tab で「選択中ボタン」のみにフォーカスが入る (非選択は tabindex=-1 でスキップ)
@@ -1938,17 +2214,18 @@
                         aria-labelledby="kuku-boost-label"
                         className="mt-2 grid grid-cols-3 gap-2"
                         onKeyDown={(e) => {
-                          const values = WRONG_WEIGHT_BOOST_PRESETS.map((p) => p.value);
-                          const cur = values.indexOf(settings.wrongWeightBoost);
+                          // v1.2.0 Phase A: PRESETS は [value,...] のフラット配列。
+                          const cur = WRONG_WEIGHT_BOOST_PRESETS.indexOf(settings.wrongWeightBoost);
                           const idx = cur === -1 ? 1 : cur; // プリセット外 (C11-06 予防) なら「ふつう」起点
+                          const len = WRONG_WEIGHT_BOOST_PRESETS.length;
                           let nextIdx = null;
-                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
-                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
+                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + len) % len;
+                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % len;
                           else if (e.key === "Home") nextIdx = 0;
-                          else if (e.key === "End") nextIdx = values.length - 1;
+                          else if (e.key === "End") nextIdx = len - 1;
                           if (nextIdx === null) return;
                           e.preventDefault();
-                          const nextValue = values[nextIdx];
+                          const nextValue = WRONG_WEIGHT_BOOST_PRESETS[nextIdx];
                           onUpdate((prev) => ({ ...prev, wrongWeightBoost: nextValue }));
                           // フォーカスを次の radio に移す (roving tabindex)
                           const group = e.currentTarget;
@@ -1956,24 +2233,26 @@
                           if (buttons[nextIdx]) buttons[nextIdx].focus();
                         }}
                       >
-                        {WRONG_WEIGHT_BOOST_PRESETS.map((preset) => {
-                          const selected = settings.wrongWeightBoost === preset.value;
+                        {WRONG_WEIGHT_BOOST_PRESETS.map((value) => {
+                          const selected = settings.wrongWeightBoost === value;
+                          const label = Util.t("settings.wrongWeightBoost." + value + ".label");
+                          const desc = Util.t("settings.wrongWeightBoost." + value + ".desc");
                           return (
                             <button
-                              key={preset.value}
+                              key={value}
                               type="button"
                               role="radio"
                               aria-checked={selected}
-                              aria-label={preset.label + ": " + preset.desc}
+                              aria-label={label + ": " + desc}
                               tabIndex={selected ? 0 : -1}
-                              onClick={() => onUpdate((prev) => ({ ...prev, wrongWeightBoost: preset.value }))}
+                              onClick={() => onUpdate((prev) => ({ ...prev, wrongWeightBoost: value }))}
                               className={
                                 selected
                                   ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                                   : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                               }
                             >
-                              {preset.label}
+                              {label}
                             </button>
                           );
                         })}
@@ -1986,53 +2265,117 @@
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <span id="kuku-slow-label" className="text-xl font-bold text-slate-700">
-                          じかんもくひょう
+                          {Util.t("settings.slowThreshold.label")}
                         </span>
-                        <span className="text-slate-500 text-sm">はやさ</span>
+                        <span className="text-slate-500 text-sm">{Util.t("settings.slowThreshold.subLabel")}</span>
                       </div>
                       <p className="mt-1 text-sm text-slate-500 leading-relaxed">
-                        これより はやく こたえられたら「とうたつ」だよ
+                        {Util.t("settings.slowThreshold.description")}
                       </p>
                       <div
                         role="radiogroup"
                         aria-labelledby="kuku-slow-label"
                         className="mt-2 grid grid-cols-4 gap-2"
                         onKeyDown={(e) => {
-                          const values = SLOW_THRESHOLD_PRESETS.map((p) => p.value);
-                          const cur = values.indexOf(settings.slowThresholdSec);
+                          const cur = SLOW_THRESHOLD_PRESETS.indexOf(settings.slowThresholdSec);
                           const idx = cur === -1 ? 1 : cur; // プリセット外なら「ふつう」起点
+                          const len = SLOW_THRESHOLD_PRESETS.length;
                           let nextIdx = null;
-                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + values.length) % values.length;
-                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % values.length;
+                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + len) % len;
+                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % len;
                           else if (e.key === "Home") nextIdx = 0;
-                          else if (e.key === "End") nextIdx = values.length - 1;
+                          else if (e.key === "End") nextIdx = len - 1;
                           if (nextIdx === null) return;
                           e.preventDefault();
-                          const nextValue = values[nextIdx];
+                          const nextValue = SLOW_THRESHOLD_PRESETS[nextIdx];
                           onUpdate((prev) => ({ ...prev, slowThresholdSec: nextValue }));
                           const group = e.currentTarget;
                           const buttons = group.querySelectorAll('[role="radio"]');
                           if (buttons[nextIdx]) buttons[nextIdx].focus();
                         }}
                       >
-                        {SLOW_THRESHOLD_PRESETS.map((preset) => {
-                          const selected = settings.slowThresholdSec === preset.value;
+                        {SLOW_THRESHOLD_PRESETS.map((value) => {
+                          const selected = settings.slowThresholdSec === value;
+                          const label = Util.t("settings.slowThreshold." + value + ".label");
+                          const desc = Util.t("settings.slowThreshold." + value + ".desc");
                           return (
                             <button
-                              key={preset.value}
+                              key={value}
                               type="button"
                               role="radio"
                               aria-checked={selected}
-                              aria-label={preset.label + " (" + preset.value + "びょう): " + preset.desc}
+                              aria-label={label + " (" + value + Util.t("settings.slowThreshold.unit") + "): " + desc}
                               tabIndex={selected ? 0 : -1}
-                              onClick={() => onUpdate((prev) => ({ ...prev, slowThresholdSec: preset.value }))}
+                              onClick={() => onUpdate((prev) => ({ ...prev, slowThresholdSec: value }))}
                               className={
                                 selected
                                   ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                                   : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                               }
                             >
-                              {preset.label}
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* げんご (v1.2.0 Phase A / SPEC §8.9)。Phase A は ja 単独なので "じどう"
+                        "にほんご" 以外を選んでも Util.t の ja フォールバックで UI は ja 表示。
+                        Phase B 以降で en 等の辞書が揃うと選択がそのまま効くようになる。
+                        radiogroup + Arrow/Home/End + roving tabindex は他プリセットと同パターン (C11-05)。 */}
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span id="kuku-lang-label" className="text-xl font-bold text-slate-700">
+                          {Util.t("settings.lang.label")}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                        {Util.t("settings.lang.description")}
+                      </p>
+                      <div
+                        role="radiogroup"
+                        aria-labelledby="kuku-lang-label"
+                        className="mt-2 grid grid-cols-3 gap-2"
+                        onKeyDown={(e) => {
+                          const cur = SUPPORTED_LANGS.indexOf(settings.lang);
+                          const idx = cur === -1 ? 0 : cur; // 値域外なら "auto" 起点
+                          const len = SUPPORTED_LANGS.length;
+                          let nextIdx = null;
+                          if (e.key === "ArrowLeft" || e.key === "ArrowUp") nextIdx = (idx - 1 + len) % len;
+                          else if (e.key === "ArrowRight" || e.key === "ArrowDown") nextIdx = (idx + 1) % len;
+                          else if (e.key === "Home") nextIdx = 0;
+                          else if (e.key === "End") nextIdx = len - 1;
+                          if (nextIdx === null) return;
+                          e.preventDefault();
+                          const nextValue = SUPPORTED_LANGS[nextIdx];
+                          onUpdate((prev) => ({ ...prev, lang: nextValue }));
+                          const group = e.currentTarget;
+                          const buttons = group.querySelectorAll('[role="radio"]');
+                          if (buttons[nextIdx]) buttons[nextIdx].focus();
+                        }}
+                      >
+                        {SUPPORTED_LANGS.map((value) => {
+                          const selected = settings.lang === value;
+                          const label = value === "auto"
+                            ? Util.t("settings.lang.auto")
+                            : Util.t("settings.lang.name." + value);
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              aria-label={label}
+                              tabIndex={selected ? 0 : -1}
+                              onClick={() => onUpdate((prev) => ({ ...prev, lang: value }))}
+                              className={
+                                selected
+                                  ? "min-h-[56px] px-2 py-3 rounded-xl bg-indigo-600 text-white font-bold border-2 border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                                  : "min-h-[56px] px-2 py-3 rounded-xl bg-white text-slate-700 font-bold border-2 border-slate-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
+                              }
+                            >
+                              {label}
                             </button>
                           );
                         })}
@@ -2047,7 +2390,7 @@
                 onClick={onClose}
                 className="w-full mt-6 min-h-[48px] px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
-                とじる
+                {Util.t("settings.close")}
               </button>
 
               <div className="mt-6 pt-5 border-t border-slate-200">
@@ -2056,7 +2399,7 @@
                   onClick={onRequestDelete}
                   className="w-full min-h-[48px] px-4 py-3 bg-white text-rose-700 font-bold rounded-xl border-2 border-rose-300 hover:bg-rose-50 focus:outline-none focus:ring-4 focus:ring-rose-300"
                 >
-                  アカウントを さくじょ
+                  {Util.t("settings.deleteAccount")}
                 </button>
               </div>
             </div>
@@ -2089,7 +2432,7 @@
           >
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
               <h2 id="kuku-delete-title" className="text-2xl font-bold text-rose-700 text-center">
-                ほんとうに けす？
+                {Util.t("delete.title")}
               </h2>
               <div className="mt-4 flex flex-col items-center">
                 {/* 削除対象のアバターを併記して識別性を上げる (C05-15) */}
@@ -2097,8 +2440,8 @@
                   {LoginHelpers.avatarOf(avatarIndex)}
                 </span>
                 <p id="kuku-delete-desc" className="mt-3 text-center text-slate-700 text-lg leading-relaxed">
-                  「{accountName}」の せいせきも<br />
-                  ぜんぶ きえちゃうよ
+                  {Util.t("delete.desc.line1", { name: accountName })}<br />
+                  {Util.t("delete.desc.line2")}
                 </p>
               </div>
               <div className="mt-6 flex gap-3">
@@ -2108,14 +2451,14 @@
                   autoFocus
                   className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300"
                 >
-                  やめる
+                  {Util.t("delete.cancel")}
                 </button>
                 <button
                   type="button"
                   onClick={onConfirm}
                   className="flex-1 min-h-[48px] px-4 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-300"
                 >
-                  けす
+                  {Util.t("delete.confirm")}
                 </button>
               </div>
             </div>
@@ -2189,7 +2532,7 @@
                   {LoginHelpers.avatarOf(account.avatarIndex)}
                 </span>
                 <h1 className="text-2xl md:text-3xl font-bold text-indigo-700 truncate">
-                  {account.name}さん、こんにちは！
+                  {Util.t("home.greeting", { name: account.name })}
                 </h1>
               </div>
               <div className="flex gap-2 shrink-0">
@@ -2198,7 +2541,7 @@
                   onClick={handleLogout}
                   className="min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
                 >
-                  ログアウト
+                  {Util.t("home.logout")}
                 </button>
                 <button
                   type="button"
@@ -2207,7 +2550,7 @@
                     settingsPrevFocusRef.current = document.activeElement;
                     setShowSettings(true);
                   }}
-                  aria-label="せってい"
+                  aria-label={Util.t("settings.title")}
                   className="min-h-[48px] min-w-[48px] px-3 py-2 bg-slate-100 text-slate-700 text-2xl rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
                 >
                   <span aria-hidden="true">⚙</span>
@@ -2220,7 +2563,7 @@
               aria-labelledby="kuku-dan-legend"
             >
               <h2 id="kuku-dan-legend" className="text-xl font-bold text-slate-700">
-                どのだんを れんしゅうする？
+                {Util.t("home.danLegend")}
               </h2>
               <div className="mt-4 grid grid-cols-3 sm:grid-cols-9 gap-2 sm:gap-3" role="group" aria-labelledby="kuku-dan-legend">
                 {DAN_LIST.map((dan) => {
@@ -2237,7 +2580,7 @@
                           : "min-h-[64px] text-xl font-bold rounded-2xl border-2 border-slate-300 bg-white text-slate-700 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
                       }
                     >
-                      {dan}のだん
+                      {Util.t("home.danButton", { dan })}
                     </button>
                   );
                 })}
@@ -2247,13 +2590,13 @@
                 onClick={selectAllDans}
                 className="mt-4 w-full min-h-[48px] px-4 py-3 bg-indigo-100 text-indigo-700 text-lg font-bold rounded-xl border-2 border-indigo-200 hover:bg-indigo-200 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
-                ぜんぶ
+                {Util.t("home.selectAllDans")}
               </button>
               {!canStart && (
                 // C10-14: 初回 render で !canStart===true で到達した経路 (ログイン直後 / 再入直後) でも SR が読み上げるよう
                 //        role="alert" に aria-live="assertive" を併用する。条件付きレンダのため true→false→true で
                 //        DOM 出し入れが起こる運用も残し、いずれの SR 実装でも読み上げられる冗長性を確保する。
-                <p className="mt-3 text-rose-600 text-base font-bold text-center" role="alert" aria-live="assertive">だんを ひとつ いじょう えらんでね</p>
+                <p className="mt-3 text-rose-600 text-base font-bold text-center" role="alert" aria-live="assertive">{Util.t("home.selectDanHint")}</p>
               )}
             </section>
 
@@ -2262,11 +2605,11 @@
               aria-labelledby="kuku-count-legend"
             >
               <h2 id="kuku-count-legend" className="text-xl font-bold text-slate-700">
-                なんもん やる？
+                {Util.t("home.countLegend")}
               </h2>
               <div className="mt-4 text-center">
                 <span className="text-7xl font-bold text-indigo-700 tabular-nums">{totalQuestions}</span>
-                <span className="text-2xl text-slate-600 ml-2">もん</span>
+                <span className="text-2xl text-slate-600 ml-2">{Util.t("home.countUnit")}</span>
               </div>
               <div className="mt-3 flex items-center gap-3">
                 <span className="text-sm text-slate-500 w-6 text-right">{QUESTION_COUNT_MIN}</span>
@@ -2278,7 +2621,7 @@
                   value={totalQuestions}
                   onChange={(e) => setTotalQuestions(Number(e.target.value))}
                   className="flex-1 h-3 accent-indigo-600"
-                  aria-label="もんだいの かず"
+                  aria-label={Util.t("home.countAriaLabel")}
                   aria-valuemin={QUESTION_COUNT_MIN}
                   aria-valuemax={QUESTION_COUNT_MAX}
                   aria-valuenow={totalQuestions}
@@ -2298,14 +2641,14 @@
                     : "w-full md:w-96 min-h-[72px] px-10 py-5 bg-slate-300 text-white text-3xl font-bold rounded-2xl cursor-not-allowed"
                 }
               >
-                はじめる
+                {Util.t("home.start")}
               </button>
               <button
                 type="button"
                 onClick={handleStats}
                 className="w-full md:w-96 min-h-[56px] px-8 py-4 bg-white text-indigo-700 text-xl font-bold rounded-2xl border-2 border-indigo-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
-                せいせき
+                {Util.t("home.stats")}
               </button>
             </section>
 
@@ -2358,12 +2701,12 @@
        * @returns {{particleCount:number, particleShape:"square"|"star", mascotDesired:"happy"|"celebrate", mascotCelebrateMs:number, toastMessage:string|null}}
        */
       function getComboCelebration(combo) {
-        if (combo >= 20) return { particleCount: 80, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく でんせつ！" };
-        if (combo >= 15) return { particleCount: 65, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく かんぺき！" };
-        if (combo >= 10) return { particleCount: 55, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく てんさい！" };
-        if (combo >= 7)  return { particleCount: 40, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく さいこう！" };
-        if (combo >= 5)  return { particleCount: 30, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: combo + "れんぞく すごい！" };
-        if (combo >= 3)  return { particleCount: 25, particleShape: "square", mascotDesired: "celebrate", mascotCelebrateMs: 1200, toastMessage: "すごい！" };
+        if (combo >= 20) return { particleCount: 80, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: Util.t("quiz.combo.20", { combo }) };
+        if (combo >= 15) return { particleCount: 65, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: Util.t("quiz.combo.15", { combo }) };
+        if (combo >= 10) return { particleCount: 55, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: Util.t("quiz.combo.10", { combo }) };
+        if (combo >= 7)  return { particleCount: 40, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: Util.t("quiz.combo.7",  { combo }) };
+        if (combo >= 5)  return { particleCount: 30, particleShape: "star",   mascotDesired: "celebrate", mascotCelebrateMs: 1500, toastMessage: Util.t("quiz.combo.5",  { combo }) };
+        if (combo >= 3)  return { particleCount: 25, particleShape: "square", mascotDesired: "celebrate", mascotCelebrateMs: 1200, toastMessage: Util.t("quiz.combo.3") };
         return             { particleCount: 15, particleShape: "square", mascotDesired: "happy",     mascotCelebrateMs: 0,    toastMessage: null };
       }
 
@@ -2390,10 +2733,10 @@
           >
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6">
               <h2 id="kuku-pause-title" className="text-2xl font-bold text-indigo-700 text-center">
-                ちゅうだん しますか？
+                {Util.t("quiz.pause.title")}
               </h2>
               <p id="kuku-pause-desc" className="mt-3 text-center text-slate-700 text-lg">
-                とちゅうの せいせきは のこらないよ
+                {Util.t("quiz.pause.desc")}
               </p>
               <div className="mt-6 flex gap-3">
                 <button
@@ -2402,14 +2745,14 @@
                   autoFocus
                   className="flex-1 min-h-[48px] px-4 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-300 transition-colors"
                 >
-                  つづける
+                  {Util.t("quiz.pause.continue")}
                 </button>
                 <button
                   type="button"
                   onClick={onConfirm}
                   className="flex-1 min-h-[48px] px-4 py-3 bg-rose-600 text-white font-bold rounded-xl hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-300 transition-colors"
                 >
-                  やめる
+                  {Util.t("quiz.pause.quit")}
                 </button>
               </div>
             </div>
@@ -2569,7 +2912,7 @@
             setMascotDesired("sad");
             // 3 連続不正解で寄り添いトースト (SPEC §5.1 / prompts.md Step 7)
             if (nextWrongStreak >= 3) {
-              showCelebrationToast("いっしょに がんばろう", "encourage");
+              showCelebrationToast(Util.t("quiz.encourage"), "encourage");
             }
           }
         };
@@ -2798,7 +3141,7 @@
           <main className="min-h-screen flex flex-col px-4 py-4 max-w-2xl mx-auto w-full">
             <header className="flex items-center justify-between gap-3">
               <div className="text-slate-700 text-lg font-bold tabular-nums" aria-live="polite">
-                もんだい {questionIndex + 1} / {snapshot.totalQuestions}
+                {Util.t("quiz.header.progress", { current: questionIndex + 1, total: snapshot.totalQuestions })}
               </div>
               <div className="flex items-center gap-3">
                 {/* マスコット: effectsEnabled=false なら component 側で null 返却 */}
@@ -2809,7 +3152,7 @@
                   onClick={openPause}
                   className="min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300 transition-colors"
                 >
-                  ちゅうだん
+                  {Util.t("quiz.pauseButton")}
                 </button>
               </div>
             </header>
@@ -2821,7 +3164,7 @@
               aria-valuemin={0}
               aria-valuemax={snapshot.totalQuestions}
               aria-valuenow={questionIndex}
-              aria-label="しんちょく"
+              aria-label={Util.t("quiz.progress.ariaLabel")}
             >
               <div
                 className="h-full bg-indigo-500 transition-all"
@@ -2857,15 +3200,15 @@
               {/* フィードバック: aria-live="polite" で読み上げ。高さを固定してレイアウトジャンプを避ける */}
               <div className="mt-3 min-h-[96px] w-full max-w-md text-center" role="status" aria-live="polite">
                 {feedback !== null && feedback.kind === "correct" && (
-                  <p className="text-3xl font-bold text-green-600">○ せいかい！</p>
+                  <p className="text-3xl font-bold text-green-600">{Util.t("quiz.feedback.correct")}</p>
                 )}
                 {feedback !== null && feedback.kind === "wrong" && (
                   <div>
-                    <p className="text-3xl font-bold text-rose-600">× おしいっ</p>
+                    <p className="text-3xl font-bold text-rose-600">{Util.t("quiz.feedback.wrong")}</p>
                     <p className="mt-2 text-xl text-slate-700">
-                      こたえは{" "}
+                      {Util.t("quiz.feedback.wrong.answerPrefix")}{" "}
                       <span className="text-3xl font-bold text-indigo-700 tabular-nums">{feedback.correctAnswer}</span>
-                      {" "}だよ
+                      {" "}{Util.t("quiz.feedback.wrong.answerSuffix")}
                     </p>
                   </div>
                 )}
@@ -2881,11 +3224,11 @@
                   autoFocus
                   className="w-full min-h-[72px] px-10 py-5 bg-indigo-600 text-white text-2xl font-bold rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                 >
-                  つぎへ
+                  {Util.t("quiz.next")}
                 </button>
               </div>
             ) : (
-              <div className="mt-auto pt-4 grid grid-cols-3 gap-2 sm:gap-3" role="group" aria-label="テンキー">
+              <div className="mt-auto pt-4 grid grid-cols-3 gap-2 sm:gap-3" role="group" aria-label={Util.t("quiz.keypad.ariaLabel")}>
                 {[7, 8, 9, 4, 5, 6, 1, 2, 3].map((n) => (
                   <button
                     key={n}
@@ -2912,7 +3255,7 @@
                       : "min-h-[72px] text-xl font-bold rounded-2xl border-2 border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed transition-colors"
                   }
                 >
-                  けす
+                  {Util.t("quiz.keypad.delete")}
                 </button>
                 <button
                   type="button"
@@ -2937,7 +3280,7 @@
                       : "min-h-[72px] text-xl font-bold rounded-2xl bg-slate-300 text-white cursor-not-allowed transition-colors"
                   }
                 >
-                  こたえる
+                  {Util.t("quiz.keypad.submit")}
                 </button>
               </div>
             )}
@@ -3077,7 +3420,7 @@
         if (!latest) {
           return (
             <main className="min-h-screen flex items-center justify-center px-4 py-6">
-              <p className="text-lg text-slate-600">ホームへ もどるよ…</p>
+              <p className="text-lg text-slate-600">{Util.t("result.redirect")}</p>
             </main>
           );
         }
@@ -3113,9 +3456,9 @@
           ? latest.selectedDans.filter((d) => Number.isInteger(d) && d >= 1 && d <= 9)
           : [];
         const retryDanLabel = retryDans.length === 0 || retryDans.length >= 9
-          ? "ぜんぶの だん"
-          : retryDans.join("・") + "の だん";
-        const retrySummary = retryDanLabel + " / " + latest.totalQuestions + "もん";
+          ? Util.t("result.retry.allDans")
+          : Util.t("result.retry.selectedDans", { dans: retryDans.join("・") });
+        const retrySummary = Util.t("result.retry.summary", { danLabel: retryDanLabel, total: latest.totalQuestions });
 
         const handleRetry = () => {
           // 同じ設定で新セッション。Context が破棄されている経路 (リロード等) でも復元できる (C05-14)。
@@ -3139,7 +3482,7 @@
             <div className="w-full max-w-2xl flex flex-col gap-4">
               <header className="text-center">
                 <h1 className="text-3xl md:text-4xl font-bold text-indigo-700">
-                  けっか はっぴょう
+                  {Util.t("result.title")}
                 </h1>
                 {/* マスコットは effectsEnabled=false なら非表示 (SPEC §5.4 純テキスト退行) */}
                 {/* C08-06: SPEC §5.3 結果画面は celebrate 1500ms を明示的に指定 */}
@@ -3150,10 +3493,10 @@
                     C07-02: 正答率帯で文言を分岐し、低スコア時も寄り添う言葉を出す。 */}
                 <p className="mt-2 text-lg text-slate-700" aria-live="polite">
                   {correctRate >= 0.9
-                    ? "すごい！ " + correct + " / " + total + " もん せいかい！"
+                    ? Util.t("result.announce.high", { correct, total })
                     : correctRate >= 0.5
-                      ? correct + " / " + total + " もん できたよ！"
-                      : correct + " / " + total + " もん できたね！ つぎも いっしょに がんばろう"}
+                      ? Util.t("result.announce.mid", { correct, total })
+                      : Util.t("result.announce.low", { correct, total })}
                 </p>
               </header>
 
@@ -3162,19 +3505,19 @@
                 className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6 text-center"
                 aria-labelledby="kuku-result-score"
               >
-                <h2 id="kuku-result-score" className="sr-only">スコア</h2>
+                <h2 id="kuku-result-score" className="sr-only">{Util.t("result.score.sr")}</h2>
                 <div className="text-7xl md:text-8xl font-bold text-indigo-700 tabular-nums leading-tight">
                   <span>{correct}</span>
                   <span className="text-3xl md:text-4xl text-slate-400 mx-2" aria-hidden="true">/</span>
                   <span>{total}</span>
                 </div>
                 <div className="mt-3 text-xl text-slate-600">
-                  せいかいりつ{" "}
+                  {Util.t("result.correctRate")}{" "}
                   <span className="text-2xl font-bold text-indigo-700 tabular-nums">{ratePercent}</span>
                   <span className="text-2xl font-bold text-indigo-700">%</span>
                 </div>
                 <div className="mt-1 text-xl text-slate-600">
-                  じかん{" "}
+                  {Util.t("result.elapsed")}{" "}
                   <span className="text-2xl font-bold text-slate-800 tabular-nums">{elapsedDisplay}</span>
                 </div>
 
@@ -3184,7 +3527,7 @@
                 <div
                   className="mt-4 flex justify-center gap-1"
                   role="img"
-                  aria-label={"ほし " + stars + " こ"}
+                  aria-label={Util.t("result.stars.ariaLabel", { n: stars })}
                 >
                   {[1, 2, 3, 4, 5].map((i) => (
                     <svg
@@ -3210,22 +3553,22 @@
                   <div className="mt-4 text-base text-slate-600">
                     {rateDiff > 0 ? (
                       <span>
-                        まえより{" "}
+                        {Util.t("result.diff.improved.prefix")}{" "}
                         <span className="text-lg font-bold text-green-600 tabular-nums">
                           {rateDiff}%
                         </span>
-                        {" "}あがった！
+                        {" "}{Util.t("result.diff.improved.suffix")}
                       </span>
                     ) : rateDiff < 0 ? (
                       <span>
-                        まえより{" "}
+                        {Util.t("result.diff.worse.prefix")}{" "}
                         <span className="text-lg font-bold text-indigo-600 tabular-nums">
                           {Math.abs(rateDiff)}%
                         </span>
-                        {" "}もうちょっと！
+                        {" "}{Util.t("result.diff.worse.suffix")}
                       </span>
                     ) : (
-                      <span className="text-lg font-bold text-slate-600">まえと おなじくらい がんばった！</span>
+                      <span className="text-lg font-bold text-slate-600">{Util.t("result.diff.same")}</span>
                     )}
                   </div>
                 )}
@@ -3237,12 +3580,12 @@
                 aria-labelledby="kuku-result-wrong-title"
               >
                 <h2 id="kuku-result-wrong-title" className="text-xl font-bold text-slate-700">
-                  まちがえた もんだい
+                  {Util.t("result.wrong.title")}
                 </h2>
                 {isAllCorrect ? (
-                  <p className="mt-3 text-lg text-green-700">ぜんぶ せいかい！すごいね！</p>
+                  <p className="mt-3 text-lg text-green-700">{Util.t("result.wrong.allCorrect")}</p>
                 ) : isDetailsMissing ? (
-                  <p className="mt-3 text-base text-slate-500">きろくの いちぶが みつからないよ</p>
+                  <p className="mt-3 text-base text-slate-500">{Util.t("result.wrong.missing")}</p>
                 ) : (
                   <ul className="mt-3 max-h-[40vh] overflow-y-auto pr-1 divide-y divide-slate-200">
                     {/* C07-14: 同一問題が複数回出題されるケースを想定し key を複合化 (Step 7 でアニメ追加時の差分保護)。 */}
@@ -3259,12 +3602,12 @@
                         <span className="text-base text-slate-600 flex flex-col items-end gap-0.5">
                           <span>
                             <span className="text-rose-600 font-bold mr-1" aria-hidden="true">×</span>
-                            きみ:{" "}
+                            {Util.t("result.wrong.userAnswer.label")}:{" "}
                             <span className="text-rose-600 font-bold tabular-nums">{d.userAnswer}</span>
                           </span>
                           <span>
                             <span className="text-green-700 font-bold mr-1" aria-hidden="true">○</span>
-                            せいかい:{" "}
+                            {Util.t("result.wrong.correctAnswer.label")}:{" "}
                             <span className="text-indigo-700 font-bold tabular-nums">{d.correctAnswer}</span>
                           </span>
                         </span>
@@ -3282,7 +3625,7 @@
                   onClick={handleRetry}
                   className="flex-1 min-h-[72px] px-8 py-4 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                 >
-                  <span className="block text-2xl font-bold">もういちど</span>
+                  <span className="block text-2xl font-bold">{Util.t("result.retry.button")}</span>
                   <span className="block text-sm font-normal text-indigo-100 mt-0.5">{retrySummary}</span>
                 </button>
                 <button
@@ -3290,8 +3633,8 @@
                   onClick={handleHome}
                   className="flex-1 min-h-[72px] px-8 py-4 bg-white text-indigo-700 rounded-2xl border-2 border-indigo-300 hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors"
                 >
-                  <span className="block text-2xl font-bold">ホームへ</span>
-                  <span className="block text-sm font-normal text-indigo-400 mt-0.5">だんを えらびなおす</span>
+                  <span className="block text-2xl font-bold">{Util.t("result.home.button")}</span>
+                  <span className="block text-sm font-normal text-indigo-400 mt-0.5">{Util.t("result.home.subtitle")}</span>
                 </button>
               </section>
             </div>
@@ -3310,12 +3653,13 @@
       // Tailwind CLI は正規表現ベースで class を抽出するため、cellCls / legendCls は
       // **完全な class 文字列**で静的に列挙する (CLAUDE.md 「Tailwind クラスの記述ルール」)。
       // 色は SPEC §3.3 の参考色に最も近い Tailwind パステル系を採用 (SPEC §5.0 彩度方針とも整合)。
+      // v1.2.0 Phase A: label は `proficiency.{level}.label` MESSAGES で参照する (SPEC §8.9.5)。
       const PROFICIENCY_META = [
-        { label: "みちょうせん", cellCls: "bg-slate-200 text-slate-600 border-slate-300", legendCls: "bg-slate-200 text-slate-700 border-slate-300" },
-        { label: "にがて",        cellCls: "bg-rose-300 text-rose-900 border-rose-400",   legendCls: "bg-rose-300 text-rose-900 border-rose-400" },
-        { label: "もうすこし",    cellCls: "bg-orange-300 text-orange-900 border-orange-400", legendCls: "bg-orange-300 text-orange-900 border-orange-400" },
-        { label: "まあまあ",      cellCls: "bg-yellow-200 text-yellow-900 border-yellow-400", legendCls: "bg-yellow-200 text-yellow-900 border-yellow-400" },
-        { label: "とくい",        cellCls: "bg-green-300 text-green-900 border-green-400", legendCls: "bg-green-300 text-green-900 border-green-400" },
+        { cellCls: "bg-slate-200 text-slate-600 border-slate-300", legendCls: "bg-slate-200 text-slate-700 border-slate-300" },
+        { cellCls: "bg-rose-300 text-rose-900 border-rose-400",   legendCls: "bg-rose-300 text-rose-900 border-rose-400" },
+        { cellCls: "bg-orange-300 text-orange-900 border-orange-400", legendCls: "bg-orange-300 text-orange-900 border-orange-400" },
+        { cellCls: "bg-yellow-200 text-yellow-900 border-yellow-400", legendCls: "bg-yellow-200 text-yellow-900 border-yellow-400" },
+        { cellCls: "bg-green-300 text-green-900 border-green-400", legendCls: "bg-green-300 text-green-900 border-green-400" },
       ];
 
       /**
@@ -3439,7 +3783,7 @@
                     {LoginHelpers.avatarOf(account.avatarIndex)}
                   </span>
                   <h1 className="text-2xl md:text-3xl font-bold text-indigo-700 truncate">
-                    {account.name}さんの せいせき
+                    {Util.t("stats.header.title", { name: account.name })}
                   </h1>
                 </div>
                 <button
@@ -3447,7 +3791,7 @@
                   onClick={handleBack}
                   className="shrink-0 min-h-[48px] px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 focus:outline-none focus:ring-4 focus:ring-slate-300"
                 >
-                  もどる
+                  {Util.t("stats.header.back")}
                 </button>
               </header>
 
@@ -3456,7 +3800,7 @@
                   Tab フォーカス可能にし、Tab キーの 1 ストロークでパネル内フォーカスへ抜ける。 */}
               <nav
                 role="tablist"
-                aria-label="せいせき カテゴリ"
+                aria-label={Util.t("stats.tabs.ariaLabel")}
                 className="flex flex-wrap gap-2"
                 onKeyDown={(e) => {
                   const cur = TAB_ORDER.indexOf(tab);
@@ -3476,19 +3820,19 @@
                 }}
               >
                 <button type="button" role="tab" id="kuku-stats-tab-history" aria-selected={tab === "history"} aria-controls="kuku-stats-panel-history" tabIndex={tab === "history" ? 0 : -1} onClick={() => selectTab("history")} className={tabBtnCls("history")}>
-                  れきし
+                  {Util.t("stats.tabs.history")}
                 </button>
                 <button type="button" role="tab" id="kuku-stats-tab-dans" aria-selected={tab === "dans"} aria-controls="kuku-stats-panel-dans" tabIndex={tab === "dans" ? 0 : -1} onClick={() => selectTab("dans")} className={tabBtnCls("dans")}>
-                  だんべつ
+                  {Util.t("stats.tabs.dans")}
                 </button>
                 <button type="button" role="tab" id="kuku-stats-tab-map" aria-selected={tab === "map"} aria-controls="kuku-stats-panel-map" tabIndex={tab === "map" ? 0 : -1} onClick={() => selectTab("map")} className={tabBtnCls("map")}>
-                  マップ
+                  {Util.t("stats.tabs.map")}
                 </button>
                 <button type="button" role="tab" id="kuku-stats-tab-time" aria-selected={tab === "time"} aria-controls="kuku-stats-panel-time" tabIndex={tab === "time" ? 0 : -1} onClick={() => selectTab("time")} className={tabBtnCls("time")}>
-                  がんばった きろく
+                  {Util.t("stats.tabs.time")}
                 </button>
                 <button type="button" role="tab" id="kuku-stats-tab-weak" aria-selected={tab === "weak"} aria-controls="kuku-stats-panel-weak" tabIndex={tab === "weak" ? 0 : -1} onClick={() => selectTab("weak")} className={tabBtnCls("weak")}>
-                  にがて
+                  {Util.t("stats.tabs.weak")}
                 </button>
               </nav>
 
@@ -3496,8 +3840,8 @@
               {!hasData && tab !== "map" && tab !== "time" && (
                 <section className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-8 text-center">
                   <p className="text-5xl leading-none" aria-hidden="true">🐣</p>
-                  <p className="mt-3 text-xl text-slate-700">まだ データが ありません</p>
-                  <p className="mt-2 text-base text-slate-500">ホームから 1かい あそんでみよう！</p>
+                  <p className="mt-3 text-xl text-slate-700">{Util.t("stats.empty.title")}</p>
+                  <p className="mt-2 text-base text-slate-500">{Util.t("stats.empty.hint")}</p>
                 </section>
               )}
 
@@ -3510,7 +3854,7 @@
                   className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
                 >
                   <h2 id="kuku-stats-history-title" className="text-xl font-bold text-slate-700 mb-3">
-                    プレイ りれき <span className="text-sm font-normal text-slate-500">（あたらしい じゅん）</span>
+                    {Util.t("stats.history.title")} <span className="text-sm font-normal text-slate-500">{Util.t("stats.history.order")}</span>
                   </h2>
                   <ul className="divide-y divide-slate-200 max-h-[60vh] overflow-y-auto pr-1">
                     {agg.sortedDesc.map(function (s, i) {
@@ -3524,7 +3868,7 @@
                             {StatsHelpers.formatDate(s.timestamp)}
                           </span>
                           <span className="text-base text-slate-700 tabular-nums flex-1 text-center">
-                            {s.correctCount} / {s.totalQuestions} もん
+                            {Util.t("stats.history.row", { correct: s.correctCount, total: s.totalQuestions })}
                           </span>
                           <span className="text-lg font-bold text-indigo-700 tabular-nums w-16 text-right">
                             {rate}%
@@ -3545,7 +3889,7 @@
                   className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
                 >
                   <h2 id="kuku-stats-dans-title" className="text-xl font-bold text-slate-700 mb-3">
-                    だんべつ せいかいりつ
+                    {Util.t("stats.dans.title")}
                   </h2>
                   <ul className="flex flex-col gap-3">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (dan) {
@@ -3556,12 +3900,14 @@
                       return (
                         <li key={dan} className="flex items-center gap-3">
                           <span className="w-16 text-base font-bold text-slate-700 shrink-0">
-                            {dan}の だん
+                            {Util.t("stats.dans.danLabel", { dan })}
                           </span>
                           <div
                             className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden"
                             role="img"
-                            aria-label={dan + "のだん せいかいりつ " + (noData ? "データなし" : rate + "パーセント")}
+                            aria-label={noData
+                              ? Util.t("stats.dans.bar.aria.noData", { dan })
+                              : Util.t("stats.dans.bar.aria.percent", { dan, rate })}
                           >
                             <div
                               className={noData ? "h-full bg-slate-200" : "h-full bg-indigo-500 transition-all"}
@@ -3569,7 +3915,7 @@
                             />
                           </div>
                           <span className="w-24 text-right text-sm text-slate-600 tabular-nums shrink-0">
-                            {noData ? "まだ" : rate + "% (" + ds.attempts + ")"}
+                            {noData ? Util.t("stats.dans.noData") : rate + "% (" + ds.attempts + ")"}
                           </span>
                         </li>
                       );
@@ -3587,10 +3933,10 @@
                   className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
                 >
                   <h2 id="kuku-stats-map-title" className="text-xl font-bold text-slate-700 mb-1">
-                    しゅうじゅくど マップ
+                    {Util.t("stats.map.title")}
                   </h2>
                   <p className="text-sm text-slate-500 mb-3">
-                    さいきんの {STATS_RECENT_N}かいの けっかで いろわけしているよ
+                    {Util.t("stats.map.desc", { n: STATS_RECENT_N })}
                   </p>
 
                   {/* 凡例 */}
@@ -3602,7 +3948,7 @@
                             className={"inline-block w-4 h-4 rounded border-2 " + p.legendCls}
                             aria-hidden="true"
                           />
-                          <span className="text-slate-600">{p.label}</span>
+                          <span className="text-slate-600">{Util.t("proficiency." + i + ".label")}</span>
                         </li>
                       );
                     })}
@@ -3613,7 +3959,7 @@
                       ARIA grid パターンとして不整合になり、通常のボタン群として扱う方が SR 走査が素直になる。
                       セルは 48px 以上 (C09-01 / CLAUDE.md タッチターゲット規約) を満たす 3rem 角で描画。 */}
                   <div className="overflow-x-auto">
-                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label="しゅうじゅくど マップ">
+                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label={Util.t("stats.map.grid.aria")}>
                       <span aria-hidden="true" />
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
                         return (
@@ -3626,7 +3972,7 @@
                         return (
                           <React.Fragment key={"row-" + dan}>
                             <span className="text-xs text-slate-500 text-right font-bold self-center pr-1" aria-hidden="true">
-                              {dan}の
+                              {Util.t("stats.map.axis.dan", { dan })}
                             </span>
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
                               const key = dan + "-" + m;
@@ -3645,7 +3991,7 @@
                                   key={key}
                                   type="button"
                                   onClick={() => setSelectedCell(isSel ? null : key)}
-                                  aria-label={dan + "かける" + m + "は" + (dan * m) + "、" + meta.label}
+                                  aria-label={Util.t("stats.map.cell.aria", { dan, m, product: dan * m, label: Util.t("proficiency." + level + ".label") })}
                                   aria-pressed={isSel}
                                   className={cls}
                                 >
@@ -3673,25 +4019,25 @@
                           {detail.dan} × {detail.multiplier} = {detail.dan * detail.multiplier}
                         </span>
                         <span className={"text-xs font-bold px-3 py-1 rounded-full border-2 " + detail.meta.legendCls}>
-                          {detail.meta.label}
+                          {Util.t("proficiency." + detail.level + ".label")}
                         </span>
                       </div>
                       <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
                         <div className="bg-white rounded-xl p-2 text-center">
-                          <dt className="text-slate-500">おもさ</dt>
+                          <dt className="text-slate-500">{Util.t("stats.map.detail.weightLabel")}</dt>
                           <dd className="text-lg font-bold text-slate-800 tabular-nums">{detail.weight.toFixed(1)}</dd>
                         </div>
                         <div className="bg-white rounded-xl p-2 text-center">
-                          <dt className="text-slate-500">せいかい</dt>
-                          <dd className="text-lg font-bold text-green-700 tabular-nums">{detail.cs.correct}かい</dd>
+                          <dt className="text-slate-500">{Util.t("stats.map.detail.correctLabel")}</dt>
+                          <dd className="text-lg font-bold text-green-700 tabular-nums">{Util.t("stats.map.detail.countUnit", { n: detail.cs.correct })}</dd>
                         </div>
                         <div className="bg-white rounded-xl p-2 text-center">
-                          <dt className="text-slate-500">まちがい</dt>
-                          <dd className="text-lg font-bold text-rose-700 tabular-nums">{detail.cs.wrong}かい</dd>
+                          <dt className="text-slate-500">{Util.t("stats.map.detail.wrongLabel")}</dt>
+                          <dd className="text-lg font-bold text-rose-700 tabular-nums">{Util.t("stats.map.detail.countUnit", { n: detail.cs.wrong })}</dd>
                         </div>
                       </dl>
                       {detail.cs.attempts === 0 && (
-                        <p className="mt-2 text-sm text-slate-500">この もんだいは さいきんの {STATS_RECENT_N}かいでは まだ でていないよ</p>
+                        <p className="mt-2 text-sm text-slate-500">{Util.t("stats.map.detail.noRecent", { n: STATS_RECENT_N })}</p>
                       )}
                     </div>
                   )}
@@ -3711,20 +4057,20 @@
                   className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
                 >
                   <h2 id="kuku-stats-time-title" className="text-xl font-bold text-slate-700 mb-1">
-                    がんばった きろく
+                    {Util.t("stats.time.title")}
                   </h2>
                   {/* C16-12 / C16-13: 「みずいろ」は emerald (緑寄り) との色認識齟齬があるため「みどり + ★」に変更。
                       「-」セルと cold start の説明を足して、空欄セルが「データ不足」か「未練習」かを子供が推測できるようにする。 */}
                   <p className="text-sm text-slate-500 mb-3">
-                    みどりの ★は「とうたつ」だよ。セルを タップすると くわしく みられるよ。
-                    「-」は まだ データが すくないよ。はじめの 3もんは ウォームアップとして かぞえないよ。
+                    {Util.t("stats.time.desc.line1")}
+                    {Util.t("stats.time.desc.line2")}
                   </p>
 
                   {/* 9×9 グリッド。マップ側と同じレイアウトを踏襲し、スクリーンリーダ UX の一貫性を保つ (C09-03)。
                       セル本体の背景は「到達 (emerald) / データあり (white) / データなし (slate)」の 3 段階のみ。
                       いずれも静的クラス文字列で三項分岐 (CLAUDE.md Tailwind 規約)。 */}
                   <div className="overflow-x-auto">
-                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label="じかん マップ">
+                    <div className="grid grid-cols-10 gap-1 min-w-[32rem]" role="group" aria-label={Util.t("stats.time.grid.aria")}>
                       <span aria-hidden="true" />
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
                         return (
@@ -3737,7 +4083,7 @@
                         return (
                           <React.Fragment key={"trow-" + dan}>
                             <span className="text-xs text-slate-500 text-right font-bold self-center pr-1" aria-hidden="true">
-                              {dan}の
+                              {Util.t("stats.map.axis.dan", { dan })}
                             </span>
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(function (m) {
                               const key = dan + "-" + m;
@@ -3764,8 +4110,8 @@
                                 ? "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-xs font-bold border-2 ring-4 ring-indigo-400 focus:outline-none transition-colors tabular-nums " + baseCls
                                 : "aspect-square min-w-[3rem] min-h-[3rem] rounded-lg text-xs font-bold border-2 focus:outline-none focus:ring-4 focus:ring-indigo-300 transition-colors tabular-nums " + baseCls;
                               const aria = hasSamples
-                                ? dan + "かける" + m + "、だいたい " + avgSec + "びょう" + (reached ? "、とうたつ" : "")
-                                : dan + "かける" + m + "、まだ データなし";
+                                ? Util.t(reached ? "stats.time.cell.aria.reached" : "stats.time.cell.aria.normal", { dan, m, sec: avgSec })
+                                : Util.t("stats.time.cell.aria.noData", { dan, m });
                               const cellText = hasSamples
                                 ? (reached ? "★" + avgSec : avgSec)
                                 : "-";
@@ -3833,9 +4179,9 @@
                           </span>
                           {avgSec !== null && (
                             <span className="text-base font-bold text-slate-700">
-                              だいたい{" "}
+                              {Util.t("stats.time.detail.avgPrefix")}{" "}
                               <span className="text-2xl text-indigo-700 tabular-nums">{avgSec}</span>
-                              <span className="ml-1">びょう</span>
+                              <span className="ml-1">{Util.t("stats.time.detail.avgUnit")}</span>
                             </span>
                           )}
                         </div>
@@ -3844,12 +4190,12 @@
                             「直近 N 回の平均」であることを明示して、保護者が統計的信頼性を判断できるようにする。 */}
                         {avgSec !== null && times.length > 0 && (
                           <p className="mt-1 text-sm text-slate-500">
-                            さいきん {times.length}かいの へいきんだよ（ぜんぶで {cs.responseAttempts}かい とりくんだよ）
+                            {Util.t("stats.time.detail.avgInfo", { n: times.length, total: cs.responseAttempts })}
                           </p>
                         )}
 
                         {times.length > 0 ? (
-                          <ul className="mt-3 flex flex-col gap-1" aria-label={"さいきん " + times.length + "かい の かいとう じかん"}>
+                          <ul className="mt-3 flex flex-col gap-1" aria-label={Util.t("stats.time.detail.list.aria", { n: times.length })}>
                             {times.map(function (rt, i) {
                               const sec = Math.round(rt / 100) / 10;
                               const widthPct = Math.min(100, (rt / barMaxMs) * 100);
@@ -3859,7 +4205,7 @@
                                   <span className="w-14 text-xs text-slate-500 shrink-0">
                                     {/* C16-01: i=1 は「1 つ前」なので `i + "かいまえ"` が正（旧 `(i+1) + "かいまえ"` は
                                         i=1 で「2かいまえ」になる off-by-one）。自然な日本語で「Nかいまえ」= N 回前。 */}
-                                    {i === 0 ? "さいしん" : i + "かいまえ"}
+                                    {i === 0 ? Util.t("stats.time.detail.latest") : Util.t("stats.time.detail.nAgo", { n: i })}
                                   </span>
                                   <div className="flex-1 h-4 bg-white rounded-full overflow-hidden border border-slate-200">
                                     <div
@@ -3869,7 +4215,7 @@
                                     />
                                   </div>
                                   <span className="w-14 text-right text-sm text-slate-700 tabular-nums shrink-0">
-                                    {sec}びょう
+                                    {sec}{Util.t("stats.time.detail.secUnit")}
                                   </span>
                                 </li>
                               );
@@ -3877,7 +4223,7 @@
                           </ul>
                         ) : (
                           <p className="mt-3 text-sm text-slate-500">
-                            この もんだいの かいとう じかんは まだ きろく できていないよ
+                            {Util.t("stats.time.detail.noRecords")}
                           </p>
                         )}
 
@@ -3887,12 +4233,12 @@
                               <span className="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-emerald-100 text-emerald-800 border-2 border-emerald-200">
                                 {/* C16-02: 内部計算は latest 1 サンプル vs それ以外の平均 (最大 4 件) なので
                                     「このまえ」(単数) ではなく「さいきんの へいきん」で複数サンプル平均と整合させる。 */}
-                                さいきんの へいきんより {praiseText}びょう はやくなった！
+                                {Util.t("stats.time.detail.praise", { sec: praiseText })}
                               </span>
                             )}
                             {slowBadge && (
                               <span className="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-amber-50 text-amber-800 border-2 border-amber-200">
-                                もう すこし はやく できるかも
+                                {Util.t("stats.time.detail.slow")}
                               </span>
                             )}
                           </div>
@@ -3902,7 +4248,7 @@
                           <p className="mt-3 text-sm text-slate-500">
                             {/* C16-04: 「もっとやれ」ではなく「解くと精度が上がる」の統計的ガイダンス寄りに。
                                 reached セルでは fewSamples 自体が false になるので、この表示は未到達セル限定。 */}
-                            もう すこし もんだいを とくと もっと くわしく わかるよ
+                            {Util.t("stats.time.detail.fewSamples")}
                           </p>
                         )}
                       </div>
@@ -3920,15 +4266,15 @@
                   className="bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-indigo-100 p-6"
                 >
                   <h2 id="kuku-stats-weak-title" className="text-xl font-bold text-slate-700 mb-1">
-                    にがて ワースト 5
+                    {Util.t("stats.weak.title")}
                   </h2>
                   {weakTop5.length === 0 ? (
                     // weight > 1.0 のエントリが 1 件も無い = まだ苦手問題が顕在化していない状態 (C09-09)
                     <p className="mt-2 text-base text-slate-700">
-                      まだ にがてな もんだいは ないよ！<br />この ちょうしで がんばろう！
+                      {Util.t("stats.weak.empty.line1")}<br />{Util.t("stats.weak.empty.line2")}
                     </p>
                   ) : (<>
-                  <p className="text-sm text-slate-500 mb-3">いっしょに がんばろう！</p>
+                  <p className="text-sm text-slate-500 mb-3">{Util.t("stats.weak.hint")}</p>
                   <ul className="flex flex-col gap-2">
                     {weakTop5.map(function (item, i) {
                       const cs = agg.cellStats[item.key];
@@ -3945,15 +4291,15 @@
                           </span>
                           <span className="text-xs text-slate-600 text-right shrink-0 leading-tight">
                             <span className="block">
-                              おもさ{" "}
+                              {Util.t("stats.weak.weightLabel")}{" "}
                               <span className="text-base font-bold text-rose-700 tabular-nums">
                                 {item.weight.toFixed(1)}
                               </span>
                             </span>
                             <span className="block">
                               {cs.attempts > 0
-                                ? "せいかい " + cs.correct + "/" + cs.attempts
-                                : "まだ データなし"}
+                                ? Util.t("stats.weak.stats", { correct: cs.correct, attempts: cs.attempts })
+                                : Util.t("stats.weak.noData")}
                             </span>
                           </span>
                         </li>
@@ -3991,12 +4337,12 @@
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 text-center">
               <div className="text-6xl leading-none" aria-hidden="true">🐱</div>
               <h2 id="kuku-welcome-title" className="mt-3 text-2xl font-bold text-indigo-700">
-                くくどうじょうへ ようこそ！
+                {Util.t("welcome.title")}
               </h2>
               <p id="kuku-welcome-desc" className="mt-4 text-base text-slate-700 leading-relaxed">
-                せいせきは この ブラウザに ほぞんされるよ。<br />
-                ブラウザの おそうじや ひみつモードで あそぶと、<br />
-                せいせきが きえることが あるから ちゅういしてね。
+                {Util.t("welcome.line1")}<br />
+                {Util.t("welcome.line2")}<br />
+                {Util.t("welcome.line3")}
               </p>
               <button
                 type="button"
@@ -4004,7 +4350,7 @@
                 autoFocus
                 className="w-full mt-6 min-h-[56px] px-4 py-3 bg-indigo-600 text-white text-xl font-bold rounded-2xl shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300"
               >
-                わかったよ
+                {Util.t("welcome.dismiss")}
               </button>
             </div>
           </div>
@@ -4028,7 +4374,12 @@
         const [totalQuestions, setTotalQuestions] = useState(27);
         const [settings, setSettings] = useState(() => {
           const id = Storage.loadCurrentAccountId();
-          return id ? Storage.loadSettings(id) : { ...DEFAULT_SETTINGS };
+          const s = id ? Storage.loadSettings(id) : { ...DEFAULT_SETTINGS };
+          // v1.2.0 Phase A / SPEC §8.9 / C13-15: 初回 render より前に I18n.current を確定させる。
+          // useState 初期化関数は mount 時 1 回だけ同期実行されるので、JSX 側の Util.t が
+          // 最初から正しい言語を引く。
+          I18n.current = s.lang === "auto" ? detectLang() : s.lang;
+          return s;
         });
 
         const account = useMemo(
@@ -4037,10 +4388,15 @@
         );
 
         // アカウント切替時に設定を再読込。削除直後 (currentAccountId===null) はデフォルトに戻す。
+        // v1.2.0 Phase A: setSettings より前に I18n.current を同期更新し、次 render で即座に
+        // 新アカウントの言語で描画できるようにする。
         useEffect(() => {
           if (currentAccountId) {
-            setSettings(Storage.loadSettings(currentAccountId));
+            const loaded = Storage.loadSettings(currentAccountId);
+            I18n.current = loaded.lang === "auto" ? detectLang() : loaded.lang;
+            setSettings(loaded);
           } else {
+            I18n.current = detectLang(); // DEFAULT_SETTINGS.lang="auto" 相当
             setSettings({ ...DEFAULT_SETTINGS });
           }
         }, [currentAccountId]);
@@ -4074,6 +4430,10 @@
             updateSettings: (updater) => {
               setSettings((prev) => {
                 const next = typeof updater === "function" ? updater(prev) : updater;
+                // v1.2.0 Phase A: lang 変更を同期で I18n.current に反映 (次 render が新言語で描画)。
+                if (next && typeof next.lang === "string") {
+                  I18n.current = next.lang === "auto" ? detectLang() : next.lang;
+                }
                 if (currentAccountId) Storage.saveSettings(currentAccountId, next);
                 return next;
               });
@@ -4249,7 +4609,7 @@
                 <button
                   type="button"
                   onClick={() => setStorageWarning(null)}
-                  aria-label="おしらせを とじる"
+                  aria-label={Util.t("app.banner.close")}
                   className="min-h-[48px] min-w-[48px] text-amber-900 text-2xl font-bold hover:bg-amber-200 rounded-lg focus:outline-none focus:ring-4 focus:ring-amber-300"
                 >
                   <span aria-hidden="true">×</span>

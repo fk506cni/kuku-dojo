@@ -110,11 +110,29 @@ const INPUT_CSS = resolve(DIST_TMP, "input.css");
 const OUT_CSS = resolve(DIST_TMP, "tailwind.css");
 writeFileSync(INPUT_CSS, "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n");
 
+// SPEC §8.9.5 対策 A: Tailwind CLI は `--content` の文字列リテラルを正規表現でスキャン
+// するため、MESSAGES JSON 内の英単語 ("border" / "flex" 等) が utility class として誤検出
+// され配布版 CSS が肥大化する (C12-08)。CLI に渡す前に MESSAGES 本体を空 JSON に置換した
+// 一時 HTML を生成し、それを --content に渡す。dist 出力には MESSAGES 本体は含まれる。
+const MESSAGES_RE = /<script\s+type="application\/json"\s+id="kuku-messages">[\s\S]*?<\/script>/;
+if (!MESSAGES_RE.test(html)) {
+  throw new Error(
+    "index.html に <script type=\"application/json\" id=\"kuku-messages\"> が見つかりません。\n" +
+    "  F2 多言語対応 (SPEC §8.9) の MESSAGES 分離配置が崩れている可能性があります。"
+  );
+}
+const indexForTailwind = resolve(DIST_TMP, "index-for-tailwind.html");
+const htmlForTailwind = html.replace(
+  MESSAGES_RE,
+  '<script type="application/json" id="kuku-messages">{}</script>'
+);
+writeFileSync(indexForTailwind, htmlForTailwind);
+
 assertFile(TAILWIND_BIN, "npm install を先に実行してください");
-log("Tailwind CLI 実行 (--content index.html --minify)");
+log("Tailwind CLI 実行 (--content <MESSAGES 空化版> --minify)");
 execFileSync(
   TAILWIND_BIN,
-  ["-i", INPUT_CSS, "-o", OUT_CSS, "--content", SRC_HTML, "--minify"],
+  ["-i", INPUT_CSS, "-o", OUT_CSS, "--content", indexForTailwind, "--minify"],
   { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] }
 );
 const tailwindCss = readFileSync(OUT_CSS, "utf8");

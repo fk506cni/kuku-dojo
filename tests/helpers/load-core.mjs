@@ -86,6 +86,7 @@ function makeSeededRandom(seed) {
  *                                     （LCG が 0 で stuck するため）。省略時はホスト Math.random
  * @returns {{
  *   Storage: object, Engine: object, Util: object,
+ *   I18n: { messages: Record<string, Record<string,string>>, current: null|string },
  *   ResultHelpers: object, StatsHelpers: object,
  *   DEFAULT_SETTINGS: object,
  *   WRONG_WEIGHT_BOOST_PRESETS: ReadonlyArray<{value:number,label:string,desc:string}>,
@@ -165,7 +166,7 @@ export function loadCore(opts = {}) {
     // 末尾で公開したいシンボルを return 代わりに完成式にする
     // 第16回 C16-09: COLD_START_COUNT / STATS_RESPONSE_TIME_SAMPLES も export し、tests 側が
     // マジックナンバー 3 / 5 をハードコードせず、定数変更時の silent drift を防ぐ。
-    ";({ Storage, Engine, Util, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SLOW_THRESHOLD_PRESETS, SESSION_LIMIT, STATS_RECENT_N, COLD_START_COUNT, STATS_RESPONSE_TIME_SAMPLES });",
+    ";({ Storage, Engine, Util, I18n, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SLOW_THRESHOLD_PRESETS, SESSION_LIMIT, STATS_RECENT_N, COLD_START_COUNT, STATS_RESPONSE_TIME_SAMPLES });",
   ].join("\n");
 
   const exported = vm.runInContext(code, sandbox, { filename: "core-extracted.js" });

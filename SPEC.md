@@ -904,18 +904,22 @@ Tailwind CLI `--content index.html` は正規表現 `/[^<>"'\`\s]*[^<>"'\`\s:]/g
     writeFileSync(indexForTailwind, messagesStripped);
     execFileSync(TAILWIND_BIN, ["-i", INPUT_CSS, "-o", OUT_CSS, "--content", indexForTailwind, "--minify"], ...);
     ```
-  - **開発版 Play CDN の挙動検証**（第13回 C13-05 必須）: Tailwind Play CDN が `<script type="application/json">` のテキストを JIT 走査するかはバージョン依存。Phase A 着手前に probe script (`{"test": "border flex grid hidden"}`) を一時配置し、DevTools の Computed スタイルで `.border` 等が生成されていないことを確認。もし生成されていたら対策 A + 対策 B (tailwind.config.js blocklist) を併用する
+  - **開発版 Play CDN の挙動検証**（第13回 C13-05 / Phase A 着手時に実測完了 2026-04-23）: Tailwind Play CDN が `<script type="application/json">` のテキストを JIT 走査するかはバージョン依存のため、Phase A 着手時に probe script (`{"test": "border flex grid hidden block fixed static table"}`) を一時配置し Windows Chrome で DevTools Console を実行して確認。**結果: 8 utility rule が全て生成されることを実測確認**（Play CDN の JIT は JSON script の innerText を走査する内部実装依存の挙動）。ただし `.static` / `.table` のような「className で使われていない孤立 rule」が dev 版 CSS に数個混入するだけで、参照要素がないため描画結果は不変（視覚的乖離ゼロ / 実害ゼロ）。開発者のみが触る dev 版 `index.html` のみの話で、配布版 `dist/kuku-dojo.html` は A-9 の CLI stripping で汚染ゼロを担保する。以上から **blocklist 併用はスキップし、対策 A (CLI stripping) 単独で進めると Phase A で確定**（将来 dev MESSAGES が肥大して体感遅延が出たら後付けで blocklist 追加可能）
 
-- **対策 B: `tailwind.config.js` の `blocklist` で明示除外**
+- **対策 B: `tailwind.config.js` の `blocklist` で明示除外**（Phase A 時点では未採用）
   - MESSAGES 由来で誤検出された utility 名を列挙して除外
   - 言語追加ごとに blocklist を更新する必要がある（運用負荷増のため非推奨）
+  - Phase A 実測（上記）で「孤立 rule のみで実害ゼロ」と確認できたため、対策 A 単独で十分と判断
 
-推奨は **対策 A**。実装後は以下の smoke test を Phase A チェックリストに追加する:
+推奨は **対策 A**。実装後は以下の smoke test で dist の Tailwind 汚染を監視する:
 
 ```bash
-# 配布版 CSS に想定外の utility が含まれていないか確認 (例)
-grep -cE '^\.(border|flex|grid|hidden|block|fixed|static|table)[\s{,]' dist/kuku-dojo.html
-# → 0〜少数 (実際に使っているものを除く) であることを確認
+# 配布版 CSS は minified 1 行のため、^ アンカーの行頭 grep は機能しない。
+# dist/kuku-dojo.html をビルドし、Tailwind CSS 生成量を v1.1.0 baseline (24,592 chars)
+# と比較する形が実用的 (npm run build 出力の "[build] Tailwind CSS 生成" 行を確認)。
+npm run build 2>&1 | grep 'Tailwind CSS 生成'
+# → v1.1.0 baseline と同じ 24,592 文字前後であること (± 少数、正当な使用クラス追加に限る)
+#   MESSAGES 増加で baseline から大きく乖離していないことを A-10 検証で確認する
 ```
 
 ##### Phase A で吸収する既存定数の i18n 化（C16-10 carry-over）
