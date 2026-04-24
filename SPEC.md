@@ -158,6 +158,15 @@
  *                                             C12-21）が optional であることを示す（C14-14 / C14-16）。
  *                                             `Storage.loadSettings` 経由の戻り値は欠損時 10、プリセット外値 10 に
  *                                             正規化されるため常に number（呼び出し側で undefined 防御は不要）。
+ * @property {"auto"|"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"|"es"|"pt-BR"} [lang]
+ *                                           - (v1.2.0 追加 / §8.9) UI 言語。`"auto"` はブラウザ検出 (detectLang)、
+ *                                             それ以外は手動 override。SUPPORTED_LANGS = `"auto"` + 8 言語の 9 値、
+ *                                             detectLang 戻り値は `"auto"` を含まない 8 値（§8.9.3）。
+ *                                             `[?]` は raw 永続化値（v1.0.x / v1.1.0 からのマイグレーション対象 /
+ *                                             第17回 C17-02）が optional であることを示す。`Storage.loadSettings`
+ *                                             経由の戻り値は欠損時 `"auto"`、SUPPORTED_LANGS 外の値も `"auto"` に
+ *                                             正規化されるため常に上記 9 値のいずれか（呼び出し側で防御は不要 /
+ *                                             §8.9.9 マイグレーション契約）。
  */
 ```
 
@@ -811,24 +820,25 @@ README のロードマップ節は「初期 6 + 追加 2」で表記し、資料
 
 #### 8.9.2 タイトルとブランド表現
 
-**確定方針**（C12-18 解消）:
+**確定方針**（C12-18 / 第17回 C17-01 解消）:
 
-- タイトル本体は**全言語で常に `kuku-dojo`（英字ラテン表記）を保持**する。翻訳しない
-- `"くくどうじょう"`（ひらがな表記）は `ja` ロケールでのみ副題 / 装飾として表示する
-- 各言語の副題は以下で統一する:
+- **ブランド名の canonical は `kuku-dojo`（英字ラテン表記）** — リポジトリ名 / コード / ファイル名 / 英語文脈 / `package.json` 等で不変
+- **UI 主タイトル表示は言語別に決定**。ja ロケールでは `くくどうじょう`（ひらがな）を主タイトルとして採用する — ターゲットユーザー（小学 2-3 年生、ひらがな主体の読み手 / CLAUDE.md Quick Reference）の可読性を最優先
+- `<title>` / noscript / loading の pre-mount 表記は React 外の静的リテラルで、`<html lang="ja">` 下である以上 ja 固定 `くくどうじょう` を採用（第17回 C17-14 で明文化）
+- 各言語の主タイトル表示と副題は以下で統一する:
 
-| 言語 | 副題 |
-|------|------|
-| `ja` | 九九どうじょう — かけざんを たのしく おぼえよう |
-| `en` | Multiplication Tables Practice |
-| `zh-CN` | 九九道场 — 快乐记乘法表 |
-| `zh-TW` | 九九道場 — 快樂記乘法表 |
-| `ko` | 구구단 도장 — 곱셈구구를 즐겁게 |
-| `vi` | Đạo Trường Cửu Chương — Học bảng cửu chương vui vẻ |
-| `es` | Dojo de Multiplicación |
-| `pt-BR` | Dojô de Multiplicação |
+| 言語 | 主タイトル（app.title） | 副題（app.subtitle） |
+|------|-------------------------|----------------------|
+| `ja` | くくどうじょう | 九九どうじょう — かけざんを たのしく おぼえよう |
+| `en` | kuku-dojo | Multiplication Tables Practice |
+| `zh-CN` | kuku-dojo | 九九道场 — 快乐记乘法表 |
+| `zh-TW` | kuku-dojo | 九九道場 — 快樂記乘法表 |
+| `ko` | kuku-dojo | 구구단 도장 — 곱셈구구를 즐겁게 |
+| `vi` | kuku-dojo | Đạo Trường Cửu Chương — Học bảng cửu chương vui vẻ |
+| `es` | kuku-dojo | Dojo de Multiplicación |
+| `pt-BR` | kuku-dojo | Dojô de Multiplicação |
 
-副題の最終文言は Phase B / C の実装時に翻訳 QA で微調整してよいが、**「kuku-dojo 本体ブランド不変」の原則は変更しない**。
+副題および各言語の主タイトル表示文言は Phase B / C の実装時に翻訳 QA で微調整してよいが、**「ブランド canonical = `kuku-dojo`」の原則は変更しない**。ja 主タイトルに hiragana を採用する判断は、ja ロケールの 7-9 歳ターゲット層に対する「その言語で最も自然で読みやすい形式」を優先する原則の一例。Phase B 以降は en/zh/ko/vi/es/pt-BR それぞれで「brand 訴求力」と「可読性」の両立として `kuku-dojo` ラテン表記を採用する（今後追加言語で hiragana / 他表記の採用判断が必要になった場合、本節を上書き更新する）。
 
 **多言語フォント実機検証**（第13回 C13-17）: F2 Phase C 着手前に iOS / Android / Windows / macOS で zh-CN 簡体 / zh-TW 繁体 / ko ハングル / vi 越南語 diacritics の副題が想定字形で描画されることを確認する。特に zh-CN 道场 (簡体) と zh-TW 道場 (繁体) が Android 端末の region 設定で入れ替わるリスクを要注意。字形差分が判明した場合のみ CSS `font-family` fallback chain を本節に追記する（予防的追加はしない / 簡素化原則）。
 
@@ -875,11 +885,21 @@ function detectLang() {
 - SettingsModal で lang 変更時は (1) `Storage.saveSettings` (2) `I18n.current = effectiveLang` 再計算 (3) App 再描画 の順で反映する
 - Util.t は `I18n.current` を参照するので React context 伝搬は不要（テスト容易性を優先した設計判断）
 
+**pre-mount text の多言語対応非対象**（第17回 C17-14）:
+- `<title>` / noscript `<h1>` + `<p>` / loading `<h1>` + `<p>` は React マウント前に表示されるため Util.t が使えず、多言語対応の対象外
+- `<html lang="ja">` 下である限り ja 固定のひらがな表記（`くくどうじょう` / `このアプリを つかうには JavaScript を ゆうこうにしてね` / `よみこみちゅう…`）を採用する（§8.9.2 の主タイトル決定と整合）
+- 将来 `<html lang>` を Settings.lang と同期する場合（Phase B 以降、第17回 C17-09 参照）でも pre-mount text 自体は ja 固定のまま維持する。多言語化には複数の noscript コピーを持たせる等の力技が必要で、JS 有効下でも限定的な状況しか改善しない（割り切り）
+
 #### 8.9.4 Babel Standalone 制約下の実装方針
 
 - `messages/ja.json` 等の外部ファイル import は**不可**（開発版 Babel Standalone / 配布版インライン化いずれでも扱いにくい）
 - **`index.html` 内に直接 `const MESSAGES = { ja: {...}, en: {...} }` を埋め込む**のが現実解
 - キー命名: ドット区切りの階層（`"quiz.correct"` / `"settings.boost.easy.label"` 等）
+- **PRESETS value を key に埋込むパターン**（第17回 C17-12）: `Util.t("settings.wrongWeightBoost." + value + ".label")` のような形式を使う場合、`String(value)` の JS 挙動に依拠する:
+  - `String(1.0)` === `"1"` / `String(2.0)` === `"2"` — float の末尾 `.0` は drop される
+  - `String(0.5)` === `"0.5"` — non-integer float は **dot 区切りで階層化された扱いになる**ため、keys は `"settings.wrongWeightBoost.0.5.label"`（4 レベル）/ `"settings.wrongWeightBoost.1.label"`（3 レベル）と不揃いになる
+  - 現状 `WRONG_WEIGHT_BOOST_PRESETS = [0.5, 1.0, 2.0]` / `SLOW_THRESHOLD_PRESETS = [15, 10, 7, 5]` に対しこの揺れは吸収可能（`Util.t` は文字列 key を単純 lookup するのみ）
+  - **将来 0.75 等の float preset を追加する場合も本規則を継続**（key 変換層を入れない簡素化優先）。tests 側で該当 key の文字列表記をロックするテストを `tests/util-t.test.mjs` に 1 ケース追加済（`settings.wrongWeightBoost.0.5.label` 等）
 - `Util.t(key, params?)` で現在言語の翻訳を取得、fallback chain は「現行言語 → `ja` → キー文字列そのまま」
 - `Util.t` のパラメータ埋込は `{name}` 形式（例: `"{streak} れんぞく せいかい！"`）
 - **数値パラメータの契約**（第13回 C13-11）: 呼出側で `Math.abs(diff).toFixed(1)` / `toLocaleString()` 等で**事前に string 化**してから `params` に渡す。`Util.t` 内部で数値→文字列変換は行わない。理由: 言語別の数値フォーマット（小数点セパレータ / 千区切り）を Util.t に持たせると複雑度が増すため、呼出側の責任に寄せる
@@ -920,6 +940,13 @@ Tailwind CLI `--content index.html` は正規表現 `/[^<>"'\`\s]*[^<>"'\`\s:]/g
 npm run build 2>&1 | grep 'Tailwind CSS 生成'
 # → v1.1.0 baseline と同じ 24,592 文字前後であること (± 少数、正当な使用クラス追加に限る)
 #   MESSAGES 増加で baseline から大きく乖離していないことを A-10 検証で確認する
+
+# 第17回 C17-07: dist 直接走査版 — minified 1 行 CSS でも動く。A-0 probe で確認した
+# `.static` / `.table` 等 MESSAGES 由来の孤立 utility rule が混入していないことを検証する。
+# 使用箇所のある `.flex` / `.border` / `.block` / `.grid` / `.fixed` / `.hidden` は残るため、
+# 「className で使われていない ＝ MESSAGES 由来のみ」の 2 クラスだけを監視対象にする。
+grep -oE '\.(static|table)\{' dist/kuku-dojo.html | wc -l
+# → 0 であること (A-9 strip が機能していれば混入ゼロ)
 ```
 
 ##### Phase A で吸収する既存定数の i18n 化（C16-10 carry-over）
@@ -941,12 +968,14 @@ v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `W
 - a11y 文言（`aria-label` / `role="radio"` の aria-label）も翻訳対象
 - `Util.t` の戻り値を HTML に直接流し込まない（innerHTML 禁止、React は既定で text ノード化するので問題なし）
 
-#### 8.9.7 配布版サイズへの影響（C12-20 で上方修正）
+#### 8.9.7 配布版サイズへの影響（C12-20 上方修正 / 第17回 C17-08 再上方修正）
 
-- **1 言語あたり +5〜12 KB 想定**（UI 文言 100〜200 キー × 平均 30 文字 + a11y 文言 + WelcomeNotice 長文 + エラーメッセージ）
+- **1 言語あたり +5〜14 KB 想定**（UI 文言 100〜200 キー × 平均 30 文字 + a11y 文言 + WelcomeNotice 長文 + エラーメッセージ）
 - 日本語 / 中韓は UTF-8 3 バイト/文字なので上限側に寄る
-- §7.4 サイズ予算を 3 MB 非圧縮 / 1 MB zip に緩和したため、Phase D（8 言語フル実装）+80〜100 KB でも余裕あり
-- Phase B（en 追加）完了時点で実測し、Phase D の可否を再評価する（チェックリスト化）
+- **構造固定費 +2〜3 KB**（I18n namespace / Util.t / detectLang / SettingsModal 言語セレクト UI / loadSettings lang 正規化 — 言語数に依らず定額で一度だけ計上）
+- **Phase A ja 単独実測値**: `+16,744 B`（v1.1.0 baseline 368,758 B → Phase A 完了 385,502 B）= 固定費 +2.5 KB + ja 辞書 +14 KB 相当（第17回 C17-08 実測）
+- §7.4 サイズ予算を 3 MB 非圧縮 / 1 MB zip に緩和したため、**Phase D（8 言語フル実装）+100〜115 KB でも余裕あり**（従前 +80〜100 KB から上方修正、現行構造固定費 +2.5 KB + 8 言語 × 約 12〜14 KB = 約 +100〜114 KB 試算）
+- Phase B（en 追加）完了時点で実測し、Phase D の可否と本節の再予測を再評価する（チェックリスト化）
 
 #### 8.9.8 段階実装の推奨順序
 
@@ -957,6 +986,8 @@ v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `W
 
 #### 8.9.9 マイグレーション契約（C12-21 解消）
 
+> **型定義は §2.2 Settings typedef を single source of truth とする**（第13回 C13-08 / 第14回 C14-15 / 第17回 C17-02）。本節は「マイグレーション動機 / 値域ヒューリスティック / detectLang との契約差」の説明用。
+
 既存アカウントの Settings に `lang` フィールドがない場合、`Storage.loadSettings` で以下を行う:
 
 - `lang` 欠損 → `"auto"` に補完
@@ -966,6 +997,13 @@ v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `W
   const SUPPORTED_LANGS = ["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi", "es", "pt-BR"];
   if (SUPPORTED_LANGS.indexOf(merged.lang) === -1) merged.lang = "auto";
   ```
+
+**`loadSettings` と `detectLang` の契約差**（第17回 C17-10）:
+
+- `Storage.loadSettings` は **SUPPORTED_LANGS 完全一致のみ保持**。`"en-US"` / `"zh"` / `"JA"` 等 BCP-47 拡張タグや大文字ゆれ / 短縮形は **`"auto"` に正規化** する。再検出はブラウザ言語設定経由 (`detectLang`) に委ねる
+- `detectLang` は `navigator.languages` / `navigator.language` の raw BCP-47 タグに対し派生フォールバック（`en-US` → `en` / `zh-HK` → `zh-TW` / `pt-PT` → `pt-BR` / base 部分一致）を適用する（§8.9.3）
+- 両者の非対称は意図的。SettingsModal UI は `SUPPORTED_LANGS` 9 値を直接選ばせる設計で、BCP-47 完全タグの手動入力経路を持たない。手編集 localStorage の非 canonical 値は `"auto"` に戻して再検出するのが最も単純
+- 手編集で `"en-US"` を入れて **selected な lang として保持したい**要件が出た場合は、本節を「派生フォールバック対応」に更新する判断が必要（Phase D 以降の拡張候補）
 
 **v1.0.x → v1.2.0 直接マイグレーション**（v1.1.0 スキップ）:
 

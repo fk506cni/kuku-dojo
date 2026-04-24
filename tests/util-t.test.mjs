@@ -96,3 +96,25 @@ test("Util.t: 存在しない key に params を渡しても key 文字列がそ
   I18n.current = "ja";
   assert.equal(Util.t("nonexistent", { name: "X" }), "nonexistent");
 });
+
+// 第17回 C17-12: PRESETS value を MESSAGES key に埋込むパターン (`settings.XXX.<value>.label`)。
+// String(value) の JS 挙動に依拠するため、float の扱いをロック:
+//   - `String(1.0)` === `"1"` / `String(2.0)` === `"2"` (末尾 .0 drop)
+//   - `String(0.5)` === `"0.5"` (dot 連結で 4 レベル key)
+// 現行 index.html の `Util.t("settings.wrongWeightBoost." + value + ".label")` が
+// 正しく `settings.wrongWeightBoost.0.5.label` / `.1.label` / `.2.label` を引ける契約を担保。
+test("Util.t: PRESETS float value を dot 連結した key が正しく解決される (C17-12)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.messages.ja = {
+    "settings.wrongWeightBoost.0.5.label": "ひかえめ",
+    "settings.wrongWeightBoost.1.label": "ふつう",
+    "settings.wrongWeightBoost.2.label": "しっかり",
+  };
+  I18n.current = "ja";
+  // float 0.5 は "0.5" (4 レベル key)
+  assert.equal(Util.t("settings.wrongWeightBoost." + 0.5 + ".label"), "ひかえめ");
+  // float 1.0 は "1" (3 レベル key / 末尾 .0 drop)
+  assert.equal(Util.t("settings.wrongWeightBoost." + 1.0 + ".label"), "ふつう");
+  // float 2.0 は "2" (3 レベル key / 末尾 .0 drop)
+  assert.equal(Util.t("settings.wrongWeightBoost." + 2.0 + ".label"), "しっかり");
+});

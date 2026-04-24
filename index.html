@@ -14,7 +14,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
-    <title>kuku-dojo</title>
+    <title>くくどうじょう</title>
 
     <!-- 絵文字ファビコン: 外部ファイル無しで「じぶんのアプリ」感を出す (C01-12) -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%90%B1%3C%2Ftext%3E%3C%2Fsvg%3E" />
@@ -105,14 +105,14 @@
       <noscript>
         <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;font-family:sans-serif">
           <div style="text-align:center">
-            <h1 style="font-size:2.5rem;color:#4338ca">kuku-dojo</h1>
+            <h1 style="font-size:2.5rem;color:#4338ca">くくどうじょう</h1>
             <p style="margin-top:1rem;color:#475569">このアプリを つかうには JavaScript を ゆうこうにしてね</p>
           </div>
         </main>
       </noscript>
       <main class="min-h-screen flex items-center justify-center p-8">
         <div class="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100 text-center">
-          <h1 class="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">kuku-dojo</h1>
+          <h1 class="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide">くくどうじょう</h1>
           <p class="mt-4 text-lg text-slate-600">よみこみちゅう…</p>
         </div>
       </main>
@@ -126,7 +126,7 @@
          ただし孤立 rule は描画影響ゼロのため blocklist 併用はスキップ (Phase A 判断)。 -->
     <script type="application/json" id="kuku-messages">
 {"ja":{
-"app.title":"kuku-dojo",
+"app.title":"くくどうじょう",
 "app.subtitle":"九九どうじょう — かけざんを たのしく おぼえよう",
 "storage.error.saveFailed":"ほぞん できなかったよ",
 "storage.error.privateMode":"このブラウザでは せいせきが ほぞん できません",
@@ -409,12 +409,29 @@
       // MESSAGES は `<script type="application/json" id="kuku-messages">` から読み込む。
       // tests/helpers/load-core.mjs の VM sandbox には document が存在しないため typeof ガードで
       // 空辞書 fallback する。current は A-6 の detectLang() で確定後に代入する (C13-15)。
-      const I18n = {
-        messages: (typeof document !== "undefined" && document.getElementById)
-          ? JSON.parse(document.getElementById("kuku-messages").textContent)
-          : { ja: {} },
-        current: null,
-      };
+      // 第17回 C17-03: element 消失 (dist 側 post-processor による改変 / browser extension の DOM 操作) /
+      //   JSON.parse 失敗 (BOM 混入 / 文字化け) でも空辞書 fallback し起動を止めない。Util.t は
+      //   key 文字列フォールバックで一応描画可能 (UI が英字 key だらけになる劣化表示だが、空白画面よりはマシ)。
+      const I18n = (function () {
+        let messages = { ja: {} };
+        if (typeof document !== "undefined" && document.getElementById) {
+          const el = document.getElementById("kuku-messages");
+          if (el && el.textContent) {
+            try {
+              const parsed = JSON.parse(el.textContent);
+              // parsed が object 以外 (null / 配列 / 数値) の場合も fallback 維持
+              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                messages = parsed;
+              }
+            } catch (e) {
+              console.warn("[kuku-dojo] I18n: MESSAGES parse failed, falling back to empty ja dict:", e.message);
+            }
+          } else {
+            console.warn("[kuku-dojo] I18n: #kuku-messages element missing, falling back to empty ja dict");
+          }
+        }
+        return { messages, current: null };
+      })();
 
       /**
        * ブラウザの言語設定から実効言語 (SUPPORTED_LANGS から "auto" を除いた 8 値) を決定する。
@@ -1668,29 +1685,6 @@
             }
           };
         }, []); // mount/unmount 1 回のみ。onClose は ref 経由で最新値を参照する
-      }
-
-      // ── screens (placeholders) ────────────────────────────────────
-      // Step 3 以降で本実装に差し替える。Step 0 は骨格プレースホルダのみ。
-      function Placeholder({ title, stepHint }) {
-        return (
-          <main className="min-h-screen flex flex-col items-center justify-center p-8">
-            <div className="bg-white/70 backdrop-blur rounded-3xl shadow-xl px-12 py-10 border border-indigo-100">
-              <h1 className="text-5xl md:text-6xl font-bold text-indigo-700 tracking-wide text-center">
-                {Util.t("app.title")}
-              </h1>
-              <p className="mt-6 text-2xl text-slate-700 text-center">{title}</p>
-              <p className="mt-2 text-sm text-slate-500 text-center">{stepHint}</p>
-              <nav className="mt-8 flex flex-wrap gap-2 justify-center text-sm">
-                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/login">#/login</a>
-                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/home">#/home</a>
-                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/quiz">#/quiz</a>
-                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/result">#/result</a>
-                <a className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700" href="#/stats">#/stats</a>
-              </nav>
-            </div>
-          </main>
-        );
       }
 
       // ── screens: LoginScreen ──────────────────────────────────────
