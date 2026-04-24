@@ -62,6 +62,13 @@ function assertFile(p, hint) {
   }
 }
 
+// ── 0. I18n 検査 (v1.2.0 Phase B / 第13回 C13-13) ────────────────────
+// MESSAGES の言語間キー一致を validate-i18n.mjs で検査。missing / extra が
+// 検出されたら execFileSync が非 0 exit を throw し、ビルドを停止させる。
+// SPEC §7.2.1.1 同期責任表: build-dist.mjs と validate-i18n.mjs は MESSAGES_RE を共有。
+log("I18n キー一致検査 (validate-i18n.mjs)");
+execFileSync(process.execPath, [resolve(__dirname, "validate-i18n.mjs")], { stdio: "inherit" });
+
 // ── 1. index.html 読み込み ───────────────────────────────────────────
 log("読み込み: index.html");
 const html = readFileSync(SRC_HTML, "utf8");
