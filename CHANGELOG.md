@@ -8,6 +8,50 @@
 
 （次回 v1.y.0 / v1.0.y に含める変更があればここに記載）
 
+## [1.2.0] - 2026-04-25
+
+**機能リリース**: 多言語対応 (Phase A: I18n 基盤 + ja / Phase B: en + Login 言語復元) で日本語と英語の 2 言語に対応。アプリの利用可能な言語をブラウザの言語設定から自動判定し、SettingsModal の「くわしい せってい」から手動切替も可能。第18回敵対的レビュー対応 9 件 + ユーザー判断起点の Login 言語復元（案 A）を同梱。**適応出題アルゴリズム本体は変更なし** (proficiencyLevel / updateWeight 不変)、v1.0.x / v1.1.0 の成績データは互換維持で持ち上がります。
+
+### Added
+
+- **多言語対応 Phase A/B** (ja / en の 2 言語、SPEC §8.9)
+  - `MESSAGES.ja` / `MESSAGES.en` 計 193 キー (子供向け tone "Nice!" "Awesome!" "Amazing!" "Genius!" "Perfect!" "Legendary!" 等の en 訳)
+  - **言語自動検出** (`detectLang`): `navigator.languages` から実装済言語へフォールバック (Phase B 時点 ja / en の 2 値)
+  - **言語手動切替**: SettingsModal「くわしい せってい」内に言語セレクタ（auto / にほんご / English の 3 ボタン、Phase C/D で 1 ボタンずつ拡張予定）
+  - **`<html lang>` 同期**: `applyEffectiveLang()` で `I18n.current` と `document.documentElement.lang` を同時更新（SR 発音整合 / 第17回 C17-09 吸収）
+- **device-level 言語 preference** (`kuku_lang_preference`): Login 画面（Account 未確定時）も最後に確定した言語で起動するよう、device 全体で直近の `Settings.lang` を保持。ja 環境ブラウザで en 設定 Account を使う家庭/学級でも「ログアウト → Login が ja に戻る」UX 退行を解消（v1.2.0 Phase B / 第18回ユーザー判断 案 A 採用）
+- **`Util.formatList(items)`**: Intl.ListFormat ベースのリスト連結ヘルパー。retry summary の `dans.join("・")` ja 中黒ハードコードを置換し、ja "3、5、7" / en "3, 5, 7" に locale-aware 化（第18回 C18-02）
+- **CI: `scripts/validate-i18n.mjs`**: ja を参照言語として全言語 MESSAGES の (1) key-set 一致 (2) placeholder 整合 (3) 型ガード を検査。`npm test` と `npm run build` の両方に組込み（第18回 C18-03 / C18-04 / C18-05 / C18-15）
+
+### Changed
+
+- **`SUPPORTED_LANGS` を実装済 3 値に縮約**: `["auto", "ja", "en"]` のみ。Phase C/D 未実装 6 言語（zh-CN / zh-TW / ko / vi / es / pt-BR）を SettingsModal 言語セレクタから一時的に除外し、「効かないボタン」UX 退行を回避。Phase C/D で言語追加と同じ commit で 1 行ずつ拡張する運用（第17回 C17-05 / 第18回 C18-14）
+- **SPEC §2.2 Settings typedef** / §8.9.3 / §8.9.9 / §7.2.1.1 同期責任表を Phase B 縮約に追従更新
+
+### Internal
+
+- node:test スイート 49 → **78 件**（`util-t.test.mjs` 13→17 / `storage-loadSettings.test.mjs` +1 / `storage-langPreference.test.mjs` 8 ケース新設）
+- 第18回敵対的レビュー対応 C18-01 / C18-02 / C18-03 / C18-04 / C18-05 / C18-08 / C18-10 / C18-14 / C18-15 / C18-19 の 10 件 + Login 言語復元（案 A）（詳細は `docs/__archives/report18.md`）
+
+### Known limitations / Phase C 以降に繰越
+
+- **C17-11 useEffect 1-frame flash 未対応**: アカウント切替時に旧言語で 1 フレーム描画される退行は Phase B では解消していない（`applyEffectiveLang` は同期だが useEffect 内で paint 後実行）。複アカ異言語切替の体感影響は 16 ms 程度。Phase C 以降で `useLayoutEffect` 化または `useSyncExternalStore` 化を検討（第18回 C18-01）
+- **Pre-mount の `<html lang="ja">` 固定**: React mount より前の loading placeholder / noscript / `<title>` は ja 固定。en ユーザー初回起動時の SR 発音不整合は構造的に解消困難（第17回 C17-14 で割切明文化）
+- **複数形は単一形で押通し**: en の "1 questions" / "1 times" / "1 days ago" は子供向け平易さ優先で許容（第18回 C18-12）
+- **日付形式は MM/DD 固定**: `login.lastPlayed.dateFormat` en = "{month}/{day}" は US 表記。Intl.DateTimeFormat 化は Phase C 以降で検討（第18回 C18-13）
+- **`answerSuffix` 末尾空白**: en で "The answer is 42 " と末尾スペース 1 文字残る（第18回 C18-11）
+- **`MESSAGES_RE` 属性順固定**: `type` → `id` の順。属性入替で build throw、silent 退行はしない（第17回 C17-06 / 第18回 C18-06 lookahead 化未実施）
+- **`Util.applyEffectiveLang` は bare 呼出**: CLAUDE.md namespace 規約と微差（第18回 C18-09）
+
+### 配布版
+
+- ファイルサイズ: **約 390 KB** (398,973 bytes / SPEC §7.4 の 1 MB zip 予算に対して 38.0% / 3 MB 非圧縮 FAIL の 12.7%)
+- `dist/kuku-dojo.html` は [Releases v1.2.0](https://github.com/fk506cni/kuku-dojo/releases/tag/v1.2.0) から入手可能
+
+### 既知の制限
+
+- **実機検証範囲**: en QuizScreen は Chrome で確認済（B-8 解消）。macOS Safari / iPadOS Safari / Firefox / Android タブレット / 色覚シミュレータ / SR 実読み上げ / Phase C 言語追加前の en 全画面回帰検証は v1.2.x パッチで順次消化予定（v1.0.x / v1.1.x の未消化分と合わせて運用）
+
 ## [1.1.0] - 2026-04-22
 
 **新機能リリース**: Stats 画面に「がんばった きろく」タブを追加し、回答時間の可視化と「じかんもくひょう」プリセットで子どもが自分で目標スピードを選べるようになりました。**適応出題アルゴリズム本体は変更なし** (proficiencyLevel / updateWeight 不変)。v1.0.x の成績データは互換維持で持ち上がります。
@@ -107,7 +151,8 @@
 - ファイルサイズ: **337.5 KB**
 - [Releases v1.0.0](https://github.com/fk506cni/kuku-dojo/releases/tag/v1.0.0)
 
-[Unreleased]: https://github.com/fk506cni/kuku-dojo/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/fk506cni/kuku-dojo/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/fk506cni/kuku-dojo/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fk506cni/kuku-dojo/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/fk506cni/kuku-dojo/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/fk506cni/kuku-dojo/releases/tag/v1.0.0
