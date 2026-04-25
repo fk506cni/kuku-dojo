@@ -14,6 +14,9 @@ docs/start*.md
 # レビューレポート (公開対象外、執筆中のものが docs/ 直下に残る運用)
 docs/report*.md
 
+# リリース実行 playbook (公開作業用、各バージョンごとにローカルで生成 → 実行後 __archives/ 退避)
+docs/release_v*.md
+
 # 公開作業用マニュアル (著者の個人手順、公開対象外)
 docs/publication_manual.md
 

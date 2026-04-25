@@ -318,13 +318,7 @@
 "settings.lang.description":"ひょうじする ことばを えらぶよ",
 "settings.lang.auto":"じどう",
 "settings.lang.name.ja":"にほんご",
-"settings.lang.name.en":"English",
-"settings.lang.name.zh-CN":"简体中文",
-"settings.lang.name.zh-TW":"繁體中文",
-"settings.lang.name.ko":"한국어",
-"settings.lang.name.vi":"Tiếng Việt",
-"settings.lang.name.es":"Español",
-"settings.lang.name.pt-BR":"Português (BR)"
+"settings.lang.name.en":"English"
 },
 "en":{
 "app.title":"kuku-dojo",
@@ -519,13 +513,7 @@
 "settings.lang.description":"Pick which language to show",
 "settings.lang.auto":"Auto",
 "settings.lang.name.ja":"にほんご",
-"settings.lang.name.en":"English",
-"settings.lang.name.zh-CN":"简体中文",
-"settings.lang.name.zh-TW":"繁體中文",
-"settings.lang.name.ko":"한국어",
-"settings.lang.name.vi":"Tiếng Việt",
-"settings.lang.name.es":"Español",
-"settings.lang.name.pt-BR":"Português (BR)"
+"settings.lang.name.en":"English"
 }}
     </script>
 
@@ -581,9 +569,12 @@
        *                                            0.5 (ひかえめ) / 1.0 (ふつう、既定) / 2.0 (しっかり)
        * @property {number}  slowThresholdSec    - (v1.1.0 追加 / §8.8) 遅い回答バッジのしきい値 (秒)。
        *                                            15 (のんびり) / 10 (ふつう、既定) / 7 (きびきび) / 5 (たつじん)
-       * @property {"auto"|"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"|"es"|"pt-BR"} lang
+       * @property {"auto"|"ja"|"en"} lang
        *   - (v1.2.0 追加 / §8.9) UI 言語。"auto" はブラウザ検出 (detectLang)、それ以外は手動 override。
-       *   - 値域外 (古い Settings / 手編集 / 未知の言語コード) は loadSettings で "auto" に正規化 (§8.9.9)。
+       *   - Phase B 時点では実装済 2 言語 + auto に縮約 (第18回 C18-14)。Phase C で zh-CN/zh-TW/ko/vi、
+       *     Phase D で es/pt-BR が追加される予定で、追加と同じ commit で本 typedef も拡張する。
+       *   - 値域外 (古い Settings / 手編集 / 未知の言語コード / 未実装の Phase C/D 言語) は loadSettings
+       *     で "auto" に正規化 (§8.9.9)。
        */
 
       /**
@@ -609,7 +600,8 @@
       // I18n namespace (SPEC §8.9.5 対策 A / v1.2.0 Phase A)。
       // MESSAGES は `<script type="application/json" id="kuku-messages">` から読み込む。
       // tests/helpers/load-core.mjs の VM sandbox には document が存在しないため typeof ガードで
-      // 空辞書 fallback する。current は A-6 の detectLang() で確定後に代入する (C13-15)。
+      // 空辞書 fallback する。current は v1.2.0 Phase B 以降 applyEffectiveLang() 経由で確定後に代入する
+      // (第13回 C13-15 / 第17回 C17-09 / 第18回 C18-19)。
       // 第17回 C17-03: element 消失 (dist 側 post-processor による改変 / browser extension の DOM 操作) /
       //   JSON.parse 失敗 (BOM 混入 / 文字化け) でも空辞書 fallback し起動を止めない。Util.t は
       //   key 文字列フォールバックで一応描画可能 (UI が英字 key だらけになる劣化表示だが、空白画面よりはマシ)。
@@ -635,16 +627,17 @@
       })();
 
       /**
-       * ブラウザの言語設定から実効言語 (SUPPORTED_LANGS から "auto" を除いた 8 値) を決定する。
+       * ブラウザの言語設定から実効言語 (SUPPORTED_LANGS から "auto" を除いた値) を決定する。
        * SPEC §8.9.3 / C12-19 (navigator.languages の undefined / 空文字列ガード)。
        * - navigator.languages[] を先に走査、無ければ [navigator.language || "ja"]
-       * - zh-HK/zh-MO → zh-TW, zh-SG → zh-CN, pt-PT → pt-BR の派生フォールバック
+       * - 第18回 C18-14: Phase B 時点では実装済 2 言語 (ja / en) のみに縮約。FALLBACKS の zh-HK 等は
+       *   Phase C/D で言語追加と同じ commit で復活させる (例: "zh-HK": "zh-TW" / "pt-PT": "pt-BR")。
        * - 完全一致 → base 部分一致 の順で採用、最終的に ja フォールバック
-       * @returns {"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"|"es"|"pt-BR"}
+       * @returns {"ja"|"en"}
        */
       function detectLang() {
-        const SUPPORTED = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi", "es", "pt-BR"];
-        const FALLBACKS = { "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN", "pt-PT": "pt-BR" };
+        const SUPPORTED = ["ja", "en"];
+        const FALLBACKS = {};
         const nav = (typeof navigator !== "undefined") ? navigator : {};
         const raws = Array.isArray(nav.languages) && nav.languages.length > 0
           ? nav.languages
@@ -665,6 +658,11 @@
       // 既存の「setSettings より前に I18n.current を同期更新して次 render で新言語描画」
       // パターンを維持するため、useEffect ではなく呼出側でインライン実行する関数として提供。
       // 引数は Settings.lang の生値 ("auto" 含む) を受け、detectLang() で effective 値に解決する。
+      //
+      // 第18回 C18-01 / 旧 C17-11 注記: 本ヘルパー導入後も「アカウント切替時の useEffect 経路」では
+      // 依然として paint 後 1-frame 前言語が表示される。useState 初期化 / updateSettings の同期経路は
+      // flash 無し。複アカ異言語切替時の 16 ms flash 解消は Phase C 以降で useLayoutEffect 化 or
+      // useSyncExternalStore 化を検討する (Phase B では未対応で release 同意済 / CHANGELOG 参照)。
       function applyEffectiveLang(langOrAuto) {
         const effective = langOrAuto === "auto" ? detectLang() : langOrAuto;
         I18n.current = effective;
@@ -695,13 +693,37 @@
           }
           return s;
         },
+        /**
+         * リスト要素を I18n.current のロケール規則で連結する (v1.2.0 Phase B / 第18回 C18-02)。
+         * 例: ja → "3、5、7" / en → "3, 5, 7"。中黒 "・" を JSX にハードコードしていた経路を
+         * 置換し、retry summary 等の和英混合 ("×3・5・7") を解消する。
+         * Intl.ListFormat 非対応環境 (極めて稀) は ", " 連結に fallback する。
+         * @param {Array<string|number>} items
+         * @returns {string}
+         */
+        formatList(items) {
+          const lang = I18n.current || "ja";
+          const arr = Array.from(items, String);
+          if (typeof Intl !== "undefined" && typeof Intl.ListFormat === "function") {
+            try {
+              return new Intl.ListFormat(lang, { style: "narrow", type: "conjunction" }).format(arr);
+            } catch (e) {
+              // 想定: 未知 BCP-47 タグ等で RangeError。fallback へ落とす。
+            }
+          }
+          return arr.join(", ");
+        },
       };
 
       /** @type {Settings} */
       const DEFAULT_SETTINGS = Object.freeze({ soundEnabled: true, effectsEnabled: true, volume: 0.4, wrongWeightBoost: 1.0, slowThresholdSec: 10, lang: "auto" });
-      // v1.2.0 Phase A / SPEC §8.9.9: Settings.lang の許容値。"auto" を含む 9 値。
-      // detectLang() は "auto" を返さない (8 値 / §8.9.3) — 両者は意味が異なるので分離維持する。
-      const SUPPORTED_LANGS = Object.freeze(["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi", "es", "pt-BR"]);
+      // v1.2.0 Phase A / SPEC §8.9.9: Settings.lang の許容値。
+      // 第18回 C18-14 (Phase B): 実装済言語のみに縮約 ("auto" + "ja" + "en" の 3 値)。
+      // 未翻訳言語ボタンが ja フォールバックされて UI 不変 + <html lang> だけ書き換わる退行
+      // (C17-05 / SR 発音不整合) を防ぐ。Phase C で zh-CN/zh-TW/ko/vi、Phase D で es/pt-BR を
+      // それぞれ「MESSAGES 追加と同じ commit で SUPPORTED_LANGS を 1 行拡張」する運用。
+      // detectLang() は "auto" を返さない (実装済 2 値 / §8.9.3) — 両者は意味が異なるので分離維持する。
+      const SUPPORTED_LANGS = Object.freeze(["auto", "ja", "en"]);
       // 3 段プリセット。順は UI 表示順 (ひかえめ → ふつう → しっかり)。
       // v1.2.0 Phase A (C16-10): value のみ保持し、表示ラベル/説明は
       // MESSAGES.ja.settings.wrongWeightBoost.{value}.{label|desc} で引く。
@@ -1028,6 +1050,49 @@
          */
         markLaunched() {
           return _writeJSON("kuku_welcomed", true);
+        },
+
+        /**
+         * device-level 言語 preference の読み出し (v1.2.0 Phase B / 第18回ユーザー判断 案 A)。
+         * 直近にユーザーが Account 経由で確定した言語 (Settings.lang 生値、"auto" 含む) を
+         * デバイス全体で共有する localStorage キー。Login 画面 (Account 未確定時) で
+         * applyEffectiveLang の引数として使い、ja 環境ブラウザ + en 設定 Account ユーザーの
+         * 「ログアウト → Login が ja に戻る」UX を解消する。
+         *
+         * 値域は SUPPORTED_LANGS と同一 (Phase B 時点 ["auto","ja","en"])。Phase C/D で言語追加と
+         * 同じ commit で SUPPORTED_LANGS が拡張されれば、本キーの許容値も自動的に拡張される。
+         * 旧バージョン (v1.0.x / v1.1.0) には本キー無し → "auto" を返し従来挙動と同等。
+         *
+         * @returns {string} 未保存 / Storage 不可 / 範囲外なら DEFAULT_SETTINGS.lang ("auto")
+         */
+        loadLangPreference() {
+          if (!Storage._available) return DEFAULT_SETTINGS.lang;
+          try {
+            const raw = localStorage.getItem("kuku_lang_preference");
+            if (typeof raw === "string" && SUPPORTED_LANGS.indexOf(raw) !== -1) return raw;
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: cannot read lang preference:", e.message);
+          }
+          return DEFAULT_SETTINGS.lang;
+        },
+
+        /**
+         * device-level 言語 preference の書き込み。
+         * SUPPORTED_LANGS 範囲外 / Storage 不可 / Quota は silent に no-op (二重通知回避)。
+         * 呼び出しタイミング: アカウント切替成功時 / updateSettings で lang 変更時。
+         * @param {string} lang - SUPPORTED_LANGS のいずれか
+         * @returns {boolean} 書き込み成功で true
+         */
+        saveLangPreference(lang) {
+          if (!Storage._available) return false;
+          if (typeof lang !== "string" || SUPPORTED_LANGS.indexOf(lang) === -1) return false;
+          try {
+            localStorage.setItem("kuku_lang_preference", lang);
+            return true;
+          } catch (e) {
+            console.warn("[kuku-dojo] storage: cannot write lang preference:", e.message);
+            return false;
+          }
         },
       };
 
@@ -3665,7 +3730,7 @@
           : [];
         const retryDanLabel = retryDans.length === 0 || retryDans.length >= 9
           ? Util.t("result.retry.allDans")
-          : Util.t("result.retry.selectedDans", { dans: retryDans.join("・") });
+          : Util.t("result.retry.selectedDans", { dans: Util.formatList(retryDans) });
         const retrySummary = Util.t("result.retry.summary", { danLabel: retryDanLabel, total: latest.totalQuestions });
 
         const handleRetry = () => {
@@ -4586,7 +4651,11 @@
           // v1.2.0 Phase A / SPEC §8.9 / C13-15: 初回 render より前に I18n.current を確定させる。
           // useState 初期化関数は mount 時 1 回だけ同期実行されるので、JSX 側の Util.t が
           // 最初から正しい言語を引く。v1.2.0 Phase B / C17-09: <html lang> も同時に同期する。
-          applyEffectiveLang(s.lang);
+          // 第18回 ユーザー判断 案 A: id が無い場合 (Login 画面起動 / ログアウト後再起動) は
+          // device-level lang preference を優先参照することで「ja 環境ブラウザ + en 設定 Account」
+          // ユーザーの Login 画面 ja 表示退行を解消する (initialLang)。
+          const initialLang = id ? s.lang : Storage.loadLangPreference();
+          applyEffectiveLang(initialLang);
           return s;
         });
 
@@ -4598,13 +4667,17 @@
         // アカウント切替時に設定を再読込。削除直後 (currentAccountId===null) はデフォルトに戻す。
         // v1.2.0 Phase A: setSettings より前に I18n.current を同期更新し、次 render で即座に
         // 新アカウントの言語で描画できるようにする。v1.2.0 Phase B / C17-09: <html lang> も同時同期。
+        // 第18回 ユーザー判断 案 A: アカウント確定時は Settings.lang を device-level preference に
+        // 保存し、ログアウト後の Login 画面起動時に最後の言語を引き継ぐ。null 経路 (Logout/削除直後)
+        // では device pref を読み戻し、現在ブラウザ言語ではなく直近のユーザー意図に従う。
         useEffect(() => {
           if (currentAccountId) {
             const loaded = Storage.loadSettings(currentAccountId);
             applyEffectiveLang(loaded.lang);
+            Storage.saveLangPreference(loaded.lang);
             setSettings(loaded);
           } else {
-            applyEffectiveLang("auto"); // DEFAULT_SETTINGS.lang="auto" 相当
+            applyEffectiveLang(Storage.loadLangPreference());
             setSettings({ ...DEFAULT_SETTINGS });
           }
         }, [currentAccountId]);
@@ -4640,8 +4713,11 @@
                 const next = typeof updater === "function" ? updater(prev) : updater;
                 // v1.2.0 Phase A: lang 変更を同期で I18n.current に反映 (次 render が新言語で描画)。
                 // v1.2.0 Phase B / C17-09: <html lang> も同時同期する。
+                // 第18回 ユーザー判断 案 A: lang 変更時は device-level preference にも保存し、
+                // ログアウト後の Login 画面起動時にも引き継ぐ。
                 if (next && typeof next.lang === "string") {
                   applyEffectiveLang(next.lang);
+                  Storage.saveLangPreference(next.lang);
                 }
                 if (currentAccountId) Storage.saveSettings(currentAccountId, next);
                 return next;

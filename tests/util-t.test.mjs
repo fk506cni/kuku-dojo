@@ -118,3 +118,30 @@ test("Util.t: PRESETS float value を dot 連結した key が正しく解決さ
   // float 2.0 は "2" (3 レベル key / 末尾 .0 drop)
   assert.equal(Util.t("settings.wrongWeightBoost." + 2.0 + ".label"), "しっかり");
 });
+
+// 第18回 C18-02: retryDans の "・" ハードコードを Intl.ListFormat 化した契約をロックする。
+// ja → "、" (読点) / en → ", " (ASCII カンマ) で和英混合 "×3・5・7" を回避する。
+test("Util.formatList: ja は narrow conjunction で「、」連結する (C18-02)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.current = "ja";
+  assert.equal(Util.formatList([3, 5, 7]), "3、5、7");
+});
+
+test("Util.formatList: en は narrow conjunction で「, 」連結する (C18-02)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.current = "en";
+  assert.equal(Util.formatList([3, 5, 7]), "3, 5, 7");
+});
+
+test("Util.formatList: 単一要素はそのまま、空配列は空文字列を返す", () => {
+  const { Util, I18n } = loadCore();
+  I18n.current = "ja";
+  assert.equal(Util.formatList([3]), "3");
+  assert.equal(Util.formatList([]), "");
+});
+
+test("Util.formatList: 数値以外も String 化して連結する (number/string 混在許容)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.current = "ja";
+  assert.equal(Util.formatList(["a", 2, "c"]), "a、2、c");
+});
