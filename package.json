@@ -1,6 +1,6 @@
 {
   "name": "kuku-dojo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "node scripts/build-dist.mjs",
-    "test": "node --test --test-reporter=spec 'tests/**/*.test.mjs'"
+    "test": "node --test --test-reporter=spec 'tests/**/*.test.mjs' && node scripts/validate-i18n.mjs"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
