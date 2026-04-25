@@ -219,7 +219,7 @@
 "quiz.feedback.correct":"○ せいかい！",
 "quiz.feedback.wrong":"× おしいっ",
 "quiz.feedback.wrong.answerPrefix":"こたえは",
-"quiz.feedback.wrong.answerSuffix":"だよ",
+"quiz.feedback.wrong.answerSuffix":" だよ",
 "quiz.next":"つぎへ",
 "quiz.keypad.ariaLabel":"テンキー",
 "quiz.keypad.delete":"けす",
@@ -326,7 +326,7 @@
 },
 "en":{
 "app.title":"kuku-dojo",
-"app.subtitle":"Multiplication Tables Practice",
+"app.subtitle":"Kuku Dojo — Multiplication Tables Practice",
 "storage.error.saveFailed":"Couldn't save your progress",
 "storage.error.privateMode":"This browser can't save your progress",
 "settings.wrongWeightBoost.0.5.label":"Easy",
@@ -418,7 +418,7 @@
 "quiz.feedback.correct":"○ Yes!",
 "quiz.feedback.wrong":"× Oops!",
 "quiz.feedback.wrong.answerPrefix":"The answer is",
-"quiz.feedback.wrong.answerSuffix":"",
+"quiz.feedback.wrong.answerSuffix":".",
 "quiz.next":"Next",
 "quiz.keypad.ariaLabel":"Keypad",
 "quiz.keypad.delete":"Delete",
@@ -617,7 +617,7 @@
 "quiz.feedback.correct":"○ 答对了！",
 "quiz.feedback.wrong":"× 差一点！",
 "quiz.feedback.wrong.answerPrefix":"答案是",
-"quiz.feedback.wrong.answerSuffix":"",
+"quiz.feedback.wrong.answerSuffix":"。",
 "quiz.next":"下一题",
 "quiz.keypad.ariaLabel":"数字键",
 "quiz.keypad.delete":"删除",
@@ -816,7 +816,7 @@
 "quiz.feedback.correct":"○ 答對了！",
 "quiz.feedback.wrong":"× 差一點！",
 "quiz.feedback.wrong.answerPrefix":"答案是",
-"quiz.feedback.wrong.answerSuffix":"",
+"quiz.feedback.wrong.answerSuffix":"。",
 "quiz.next":"下一題",
 "quiz.keypad.ariaLabel":"數字鍵",
 "quiz.keypad.delete":"刪除",
@@ -1015,7 +1015,7 @@
 "quiz.feedback.correct":"○ 정답!",
 "quiz.feedback.wrong":"× 아쉬워요!",
 "quiz.feedback.wrong.answerPrefix":"정답은",
-"quiz.feedback.wrong.answerSuffix":"이에요",
+"quiz.feedback.wrong.answerSuffix":" 이에요",
 "quiz.next":"다음",
 "quiz.keypad.ariaLabel":"키패드",
 "quiz.keypad.delete":"지우기",
@@ -1214,7 +1214,7 @@
 "quiz.feedback.correct":"○ Đúng rồi!",
 "quiz.feedback.wrong":"× Tiếc quá!",
 "quiz.feedback.wrong.answerPrefix":"Đáp án là",
-"quiz.feedback.wrong.answerSuffix":"",
+"quiz.feedback.wrong.answerSuffix":".",
 "quiz.next":"Tiếp",
 "quiz.keypad.ariaLabel":"Bàn phím số",
 "quiz.keypad.delete":"Xóa",
@@ -1435,14 +1435,24 @@
        * SPEC §8.9.3 / C12-19 (navigator.languages の undefined / 空文字列ガード)。
        * - navigator.languages[] を先に走査、無ければ [navigator.language || "ja"]
        * - Phase C (v1.3.0): 初期 6 言語フル展開 (ja/en/zh-CN/zh-TW/ko/vi)。FALLBACKS で region variant
-       *   を親言語に振る (zh-HK/zh-MO → zh-TW、zh-SG → zh-CN)。pt-PT → pt-BR は Phase D で復活。
+       *   と script tag 形式を親言語に振る:
+       *     region: zh-HK/zh-MO → zh-TW、zh-SG → zh-CN
+       *     script: zh-Hans / zh-Hans-CN / zh-Hans-SG → zh-CN、zh-Hant / zh-Hant-TW / zh-Hant-HK / zh-Hant-MO → zh-TW
+       *   pt-PT → pt-BR は Phase D で復活。
        * - 完全一致 → base 部分一致 の順で採用、最終的に ja フォールバック
+       * - 第19回 C19-05: navigator が null (typeof null === "object" を素通る) の経路を防ぐ
+       * - 第19回 C19-06: Android 中華圏ブラウザが zh-Hans-CN 等を送出する経路を吸収
        * @returns {"ja"|"en"|"zh-CN"|"zh-TW"|"ko"|"vi"}
        */
       function detectLang() {
         const SUPPORTED = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi"];
-        const FALLBACKS = { "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN" };
-        const nav = (typeof navigator !== "undefined") ? navigator : {};
+        const FALLBACKS = {
+          "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN",
+          "zh-Hans": "zh-CN", "zh-Hans-CN": "zh-CN", "zh-Hans-SG": "zh-CN",
+          "zh-Hant": "zh-TW", "zh-Hant-TW": "zh-TW", "zh-Hant-HK": "zh-TW", "zh-Hant-MO": "zh-TW",
+        };
+        // C19-05: navigator === null (typeof null === "object") も空 nav にフォールバックする
+        const nav = (typeof navigator !== "undefined" && navigator !== null) ? navigator : {};
         const raws = Array.isArray(nav.languages) && nav.languages.length > 0
           ? nav.languages
           : [nav.language || "ja"];
@@ -1465,8 +1475,8 @@
       //
       // 第18回 C18-01 / 旧 C17-11 注記: 本ヘルパー導入後も「アカウント切替時の useEffect 経路」では
       // 依然として paint 後 1-frame 前言語が表示される。useState 初期化 / updateSettings の同期経路は
-      // flash 無し。複アカ異言語切替時の 16 ms flash 解消は Phase C 以降で useLayoutEffect 化 or
-      // useSyncExternalStore 化を検討する (Phase B では未対応で release 同意済 / CHANGELOG 参照)。
+      // flash 無し。複アカ異言語切替時の 16 ms flash 解消は Phase D 以降で useLayoutEffect 化 or
+      // useSyncExternalStore 化を検討する (Phase C では未着手、release 同意維持 / 第19回 C19-20)。
       function applyEffectiveLang(langOrAuto) {
         const effective = langOrAuto === "auto" ? detectLang() : langOrAuto;
         I18n.current = effective;
@@ -4283,9 +4293,12 @@
                   <div>
                     <p className="text-3xl font-bold text-rose-600">{Util.t("quiz.feedback.wrong")}</p>
                     <p className="mt-2 text-xl text-slate-700">
+                      {/* 第19回 C19-11: suffix が句点 (en "." / zh "。" / vi ".") の場合に span との
+                          間に余計な空白が入らないよう {" "} を削除。代わりに ja " だよ" / ko " 이에요"
+                          のようにスペース必要言語は suffix 自身が leading space を内包する規約 (SPEC §8.9.6)。 */}
                       {Util.t("quiz.feedback.wrong.answerPrefix")}{" "}
                       <span className="text-3xl font-bold text-indigo-700 tabular-nums">{feedback.correctAnswer}</span>
-                      {" "}{Util.t("quiz.feedback.wrong.answerSuffix")}
+                      {Util.t("quiz.feedback.wrong.answerSuffix")}
                     </p>
                   </div>
                 )}
@@ -5459,7 +5472,7 @@
           // device-level lang preference を優先参照することで「ja 環境ブラウザ + en 設定 Account」
           // ユーザーの Login 画面 ja 表示退行を解消する (initialLang)。
           const initialLang = id ? s.lang : Storage.loadLangPreference();
-          applyEffectiveLang(initialLang);
+          Util.applyEffectiveLang(initialLang);
           return s;
         });
 
@@ -5477,11 +5490,11 @@
         useEffect(() => {
           if (currentAccountId) {
             const loaded = Storage.loadSettings(currentAccountId);
-            applyEffectiveLang(loaded.lang);
+            Util.applyEffectiveLang(loaded.lang);
             Storage.saveLangPreference(loaded.lang);
             setSettings(loaded);
           } else {
-            applyEffectiveLang(Storage.loadLangPreference());
+            Util.applyEffectiveLang(Storage.loadLangPreference());
             setSettings({ ...DEFAULT_SETTINGS });
           }
         }, [currentAccountId]);
@@ -5520,7 +5533,7 @@
                 // 第18回 ユーザー判断 案 A: lang 変更時は device-level preference にも保存し、
                 // ログアウト後の Login 画面起動時にも引き継ぐ。
                 if (next && typeof next.lang === "string") {
-                  applyEffectiveLang(next.lang);
+                  Util.applyEffectiveLang(next.lang);
                   Storage.saveLangPreference(next.lang);
                 }
                 if (currentAccountId) Storage.saveSettings(currentAccountId, next);

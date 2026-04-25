@@ -154,7 +154,7 @@ kuku-dojo/
 | `kuku_sessions_{accountId}` | `SessionResult[]` | セッション履歴 |
 | `kuku_settings_{accountId}` | `Settings` | サウンド・エフェクト ON/OFF など |
 | `kuku_welcomed` | `boolean` | 初回起動案内 (WelcomeNotice) 表示済みフラグ。device-level で運用（SPEC.md §2.1 参照） |
-| `kuku_lang_preference` | `string` | 直近の確定 `Settings.lang` 生値 (`SUPPORTED_LANGS` 完全一致 / Phase B 時点 `"auto" \| "ja" \| "en"`)。device-level で運用、Login 画面の言語復元に使用（SPEC.md §2.1 / v1.2.0 Phase B 第18回ユーザー判断 案 A） |
+| `kuku_lang_preference` | `string` | 直近の確定 `Settings.lang` 生値 (`SUPPORTED_LANGS` 完全一致 / Phase C 時点 `["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi"]` の 7 値、Phase D で 9 値に拡張予定)。device-level で運用、Login 画面の言語復元に使用（SPEC.md §2.1 / v1.2.0 Phase B 第18回ユーザー判断 案 A） |
 
 すべての読み書きはラッパー関数（`loadAccounts` / `saveAccounts` 等）経由で行い、生 API を直接叩かない。
 

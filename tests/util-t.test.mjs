@@ -145,3 +145,94 @@ test("Util.formatList: 数値以外も String 化して連結する (number/stri
   I18n.current = "ja";
   assert.equal(Util.formatList(["a", 2, "c"]), "a、2、c");
 });
+
+// ---- 第19回 C19-16 / C18-18: 全言語スモークテスト ----
+//
+// 実 MESSAGES を index.html から読込み、Phase C 6 言語すべての辞書で:
+//  (1) 全 197 keys が key 文字列フォールバックせず string を返す (= 翻訳が引ける)
+//  (2) ja の placeholder と他 5 言語の placeholder セットが一致する (= 既に validate-i18n で
+//      ロックされているが、Util.t 経由でも壊れていないこと)
+// validate-i18n は static analysis のみだが、本テストは Util.t の動的経路を回す。
+//
+// load-core 単独では document が無く I18n.messages = { ja: {} } 初期化なので、
+// テスト内で index.html を読み直して I18n.messages を丸ごと差替える。
+
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const REPO_ROOT = resolve(dirname(__filename), "..");
+const HTML = readFileSync(resolve(REPO_ROOT, "index.html"), "utf8");
+const MESSAGES_RE = /<script\s+(?=[^>]*type="application\/json")(?=[^>]*id="kuku-messages")[^>]*>([\s\S]*?)<\/script>/;
+const REAL_MESSAGES = JSON.parse(HTML.match(MESSAGES_RE)[1]);
+
+test("Util.t (smoke): Phase C 6 言語すべての全 keys が key 文字列フォールバックせず string を返す (C19-16)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.messages = REAL_MESSAGES;
+  const langs = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi"];
+  const refKeys = Object.keys(REAL_MESSAGES.ja);
+  assert.equal(refKeys.length, 197, "ja key 数が SPEC §8.9 (193 base + 4 言語名) と一致");
+
+  for (const lang of langs) {
+    I18n.current = lang;
+    for (const key of refKeys) {
+      const v = Util.t(key);
+      assert.equal(typeof v, "string", `[${lang}] key=${key} should return string`);
+      assert.notEqual(v, key, `[${lang}] key=${key} should NOT be raw key (translation missing)`);
+    }
+  }
+});
+
+test("Util.t (lang-specific): home.greeting を 6 言語で引いて name placeholder が置換される (C19-16)", () => {
+  const { Util, I18n } = loadCore();
+  I18n.messages = REAL_MESSAGES;
+  const expected = {
+    "ja": "テストさん、こんにちは！",
+    "en": "Hi テスト!",
+    "zh-CN": "你好，テスト！",
+    "zh-TW": "你好，テスト！",
+    "ko": "안녕하세요, テスト님!",
+    "vi": "Chào テスト!",
+  };
+  for (const [lang, want] of Object.entries(expected)) {
+    I18n.current = lang;
+    const got = Util.t("home.greeting", { name: "テスト" });
+    assert.equal(got, want, `[${lang}] home.greeting`);
+  }
+});
+
+test("Util.t (lang-specific): quiz.feedback.wrong.answerSuffix が 6 言語すべて空文字列ではない (C19-11 リグレッション防止)", () => {
+  // 第19回 C19-11 で en/zh-CN/zh-TW/vi の trailing space を解消するため空文字列 "" を句点に変更した。
+  // 将来 silent regression で再び "" に戻されないよう本テストでロックする。
+  const { Util, I18n } = loadCore();
+  I18n.messages = REAL_MESSAGES;
+  const langs = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi"];
+  for (const lang of langs) {
+    I18n.current = lang;
+    const v = Util.t("quiz.feedback.wrong.answerSuffix");
+    assert.notEqual(v, "", `[${lang}] answerSuffix must not be empty (C19-11)`);
+    assert.equal(typeof v, "string");
+  }
+});
+
+test("Util.t (lang-specific): app.subtitle が 6 言語すべて 'kuku-dojo' or ローカル呼称を含む副題形式 (C19-12)", () => {
+  // 第19回 C19-12: en だけ subtitle が "Multiplication Tables Practice" でネイティブ呼称無しだったが
+  // "Kuku Dojo — ..." 形式に揃えた。本テストで構造を lock。
+  const { Util, I18n } = loadCore();
+  I18n.messages = REAL_MESSAGES;
+  const expectations = {
+    "ja": "九九どうじょう",
+    "en": "Kuku Dojo",
+    "zh-CN": "九九道场",
+    "zh-TW": "九九道場",
+    "ko": "구구단 도장",
+    "vi": "Đạo Trường Cửu Chương",
+  };
+  for (const [lang, prefix] of Object.entries(expectations)) {
+    I18n.current = lang;
+    const v = Util.t("app.subtitle");
+    assert.ok(v.includes(prefix), `[${lang}] subtitle "${v}" should contain "${prefix}"`);
+    assert.ok(v.includes(" — ") || lang === "ja" /* ja は中間ダッシュあり */, `[${lang}] subtitle should contain em-dash separator`);
+  }
+});

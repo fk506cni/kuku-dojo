@@ -1296,18 +1296,19 @@ Phase B と同じ流れで `docs/release_v1.3.0.md` playbook を作成（v1.1.0 
 
 ### チェックリスト（Phase C 完了基準）
 
-- [ ] **前提**: Phase B (Step 12.B) 完了 + v1.2.0 リリース済 / 翻訳者リソース確保 / Phase B サイズ実測値メモ
-- [ ] Step 12.C-1: `MESSAGES.zh-CN` 追加（validate-i18n.mjs 通過）
-- [ ] Step 12.C-2: `MESSAGES.zh-TW` 追加（validate-i18n.mjs 通過 / zh-CN と別翻訳）
-- [ ] Step 12.C-3: `detectLang()` の zh-HK / zh-MO / zh-SG フォールバックテスト追加
-- [ ] Step 12.C-4: `MESSAGES.ko` 追加
-- [ ] Step 12.C-5: `MESSAGES.vi` 追加（diacritics 確認）
-- [ ] Step 12.C-6: 多言語フォント実機検証（iOS / Android / Windows / macOS の 4 OS × 4 言語）
-- [ ] Step 12.C-7: 各言語スクリーンショット → `assets/screenshots/`
-- [ ] Step 12.C-8: README "Languages: ja / en / zh-CN / zh-TW / ko / vi" 更新
-- [ ] 配布版サイズ再実測 → Phase D 可否最終判断材料
-- [ ] 第19回敵対的レビュー (`docs/report19.md`)
-- [ ] **v1.3.0 リリース手順**を別セッションで消化（`docs/release_v1.3.0.md` playbook）
+- [x] **前提**: Phase B (Step 12.B) 完了 + v1.2.0 リリース済 / 翻訳者リソース確保 / Phase B サイズ実測値メモ
+- [x] Step 12.C-1: `MESSAGES.zh-CN` 追加（validate-i18n.mjs 通過）
+- [x] Step 12.C-2: `MESSAGES.zh-TW` 追加（validate-i18n.mjs 通過 / zh-CN と別翻訳）
+- [x] Step 12.C-3: `detectLang()` の zh-HK / zh-MO / zh-SG フォールバックテスト追加（第19回 C19-06 で zh-Hans/Hant script tag も追加）
+- [x] Step 12.C-4: `MESSAGES.ko` 追加
+- [x] Step 12.C-5: `MESSAGES.vi` 追加（diacritics 確認）
+- [ ] Step 12.C-6: 多言語フォント実機検証（iOS / Android / Windows / macOS の 4 OS × 4 言語）— 残タスク
+- [ ] Step 12.C-7: 各言語スクリーンショット → `assets/screenshots/` — 残タスク
+- [x] Step 12.C-8: README "Languages: ja / en / zh-CN / zh-TW / ko / vi" 更新
+- [x] 配布版サイズ再実測 → 426 KB (Phase B 394 KB → +36 KB / 1 言語あたり 9 KB / 1 MB の 41%)。Phase D 余裕あり判断
+- [x] 第19回敵対的レビュー (`docs/report19.md`) → Critical 4 / Major 7 / Minor 11 / Info 6、吸収パッチで全消化
+- [x] SPEC §8.9.3 / §8.9.6 / §8.9.7 / §8.9.9 を Phase C 実測 / 7 値に同期更新（C19-07 / C19-17 消化）
+- [ ] **v1.3.0 リリース手順**を別セッションで消化（`docs/release_v1.3.0.md` playbook）— 残タスク
 
 ### 注意点
 

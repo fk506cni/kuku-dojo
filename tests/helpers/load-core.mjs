@@ -166,13 +166,22 @@ export function loadCore(opts = {}) {
     // 末尾で公開したいシンボルを return 代わりに完成式にする
     // 第16回 C16-09: COLD_START_COUNT / STATS_RESPONSE_TIME_SAMPLES も export し、tests 側が
     // マジックナンバー 3 / 5 をハードコードせず、定数変更時の silent drift を防ぐ。
-    ";({ Storage, Engine, Util, I18n, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SLOW_THRESHOLD_PRESETS, SESSION_LIMIT, STATS_RECENT_N, COLD_START_COUNT, STATS_RESPONSE_TIME_SAMPLES });",
+    // 第19回 C19-22: SUPPORTED_LANGS も export。テスト側が ["auto","ja","en","zh-CN","zh-TW","ko","vi"]
+    // をリテラル二重管理しないよう、Phase D での値域拡張時の drift を防ぐ。
+    ";({ Storage, Engine, Util, I18n, ResultHelpers, StatsHelpers, DEFAULT_SETTINGS, WRONG_WEIGHT_BOOST_PRESETS, SLOW_THRESHOLD_PRESETS, SUPPORTED_LANGS, SESSION_LIMIT, STATS_RECENT_N, COLD_START_COUNT, STATS_RESPONSE_TIME_SAMPLES });",
   ].join("\n");
 
   const exported = vm.runInContext(code, sandbox, { filename: "core-extracted.js" });
   // Util.detectLang() は呼出時に typeof navigator をチェックするため、テスト側で navigator を
   // 動的に差替え可能にする (Phase C / SPEC §8.9.3 の zh-HK/zh-MO/zh-SG fallback テスト用)。
   // sandbox の global を後から書き換えても detectLang() は最新値を参照する。
+  //
+  // 第19回 C19-28: setNavigator は単純代入。テスト間で値をリセットしたい場合は
+  // **必ず loadCore() を呼び直して fresh sandbox を取得する**こと。同じ Util を使い回して
+  // setNavigator を 2 回連続で呼ぶと前回の値が "残る" 形になる (前者を上書きするだけ)。
+  // tests/util-detectLang.test.mjs の withNavigator ヘルパーは内部で常に新規 loadCore() する
+  // パターンで本問題を回避している (L16-20)。
+  // 第19回 C19-05: navigator=null も明示的に渡せる (typeof null === "object" 経路の防御テスト用)。
   return {
     ...exported,
     localStorage: fakeLS,

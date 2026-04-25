@@ -30,8 +30,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SRC_HTML = resolve(__dirname, "..", "index.html");
 
 const html = readFileSync(SRC_HTML, "utf8");
-// build-dist.mjs の MESSAGES_RE と同形式 (属性順変化を許容する [^>]*>)
-const MESSAGES_RE = /<script\s+type="application\/json"\s+id="kuku-messages"[^>]*>([\s\S]*?)<\/script>/;
+// build-dist.mjs の MESSAGES_RE と同形式。
+// 第19回 C19-10 / C18-06: lookahead 化により属性順序非依存
+// (`type` → `id` でも `id` → `type` でも match する。HTML formatter / Prettier の属性 sort 耐性)
+const MESSAGES_RE = /<script\s+(?=[^>]*type="application\/json")(?=[^>]*id="kuku-messages")[^>]*>([\s\S]*?)<\/script>/;
 const m = html.match(MESSAGES_RE);
 if (!m) {
   console.error("[validate-i18n] kuku-messages script not found in index.html");
@@ -123,11 +125,65 @@ for (const lang of langs) {
   }
 }
 
+// ── 4. zh-CN ⇄ zh-TW 簡繁交差検査 (第19回 C19-15) ───────────────────────
+// 既知 problematic pair リストで「簡体だけ zh-CN / 繁体だけ zh-TW」を機械検査する。
+// silent regression (zh-TW に簡体字が混入 / zh-CN に繁体字が混入) を Issues 任せにせず CI で捕捉。
+// pair = [簡体, 繁体]。zh-CN は左 (簡体) のみ含むべき / zh-TW は右 (繁体) のみ含むべき。
+// 偽陽性を避けるため、両字形が分岐する高頻度文字 + 本プロジェクトで実際に使う訳語に出現するもの限定。
+const SIMPLIFIED_TRADITIONAL_PAIRS = [
+  ["设", "設"], ["开", "開"], ["关", "關"], ["关闭", "關閉"], ["时", "時"],
+  ["间", "間"], ["对", "對"], ["应", "應"], ["线", "線"], ["级", "級"],
+  ["选", "選"], ["择", "擇"], ["练", "練"], ["习", "習"], ["确", "確"],
+  ["认", "認"], ["显", "顯"], ["示", "示"], ["语", "語"], ["资", "資"],
+  ["历", "歷"], ["难", "難"], ["欢", "歡"], ["迎", "迎"], ["这", "這"],
+  ["进", "進"], ["来", "來"], ["处", "處"], ["输", "輸"], ["数", "數"],
+  ["计", "計"], ["错", "錯"], ["误", "誤"], ["环", "環"], ["从", "從"],
+  ["简", "簡"], ["繁", "繁"], ["体", "體"], ["浏览", "瀏覽"], ["记录", "記錄"],
+  ["统计", "統計"], ["发现", "發現"], ["试", "試"], ["问题", "問題"],
+];
+
+// 検査除外 key: endonym (settings.lang.name.*) は他言語辞書の中でも常にネイティブ script を保持する
+// (例: zh-TW 辞書の "settings.lang.name.zh-CN" は "中文（简体）" で簡体字が混ざるのが正しい)。
+// → 偽陽性を防ぐため、prefix 一致で除外。
+function isEndonymKey(key) {
+  return typeof key === "string" && key.startsWith("settings.lang.name.");
+}
+
+if (isDict(messages["zh-CN"]) && isDict(messages["zh-TW"])) {
+  for (const [simp, trad] of SIMPLIFIED_TRADITIONAL_PAIRS) {
+    if (simp === trad) continue; // 同形字は検査スキップ (示/迎/繁等の分岐しない字)
+    for (const k of Object.keys(messages["zh-CN"])) {
+      if (isEndonymKey(k)) continue;
+      const v = messages["zh-CN"][k];
+      if (typeof v !== "string") continue;
+      if (v.includes(trad)) {
+        console.error(
+          `[validate-i18n] [zh-CN] traditional char '${trad}' found in '${k}' = "${v}". ` +
+          `Expected simplified '${simp}'. (C19-15 cross-check)`
+        );
+        ok = false;
+      }
+    }
+    for (const k of Object.keys(messages["zh-TW"])) {
+      if (isEndonymKey(k)) continue;
+      const v = messages["zh-TW"][k];
+      if (typeof v !== "string") continue;
+      if (v.includes(simp)) {
+        console.error(
+          `[validate-i18n] [zh-TW] simplified char '${simp}' found in '${k}' = "${v}". ` +
+          `Expected traditional '${trad}'. (C19-15 cross-check)`
+        );
+        ok = false;
+      }
+    }
+  }
+}
+
 if (!ok) {
   console.error(`[validate-i18n] FAIL: integrity check failed`);
   process.exit(1);
 }
 console.log(
   `[validate-i18n] OK: ${langs.length} languages (${langs.join(", ")}), ` +
-  `${refKeys.size} keys, key-set + placeholder + shape all match`
+  `${refKeys.size} keys, key-set + placeholder + shape + zh simp/trad cross-check all match`
 );

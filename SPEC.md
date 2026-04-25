@@ -865,11 +865,19 @@ README のロードマップ節は「初期 6 + 追加 2」で表記し、資料
 
 ```js
 function detectLang() {
-  // 第18回 C18-14: Phase B 時点では実装済 2 言語 (ja / en) のみに縮約。FALLBACKS の zh-HK / zh-SG /
-  // pt-PT 等の派生も Phase C/D で言語追加と同じ commit で復活させる運用。
-  const SUPPORTED = ["ja", "en"];
-  const FALLBACKS = {}; // Phase C: { "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN" }, Phase D: { "pt-PT": "pt-BR" }
-  const nav = (typeof navigator !== "undefined") ? navigator : {};
+  // Phase C (v1.3.0): 初期 6 言語フル展開。Phase D で es / pt-BR を MESSAGES 追加と同じ commit で
+  // SUPPORTED + FALLBACKS を 1 行ずつ拡張する運用 (第18回 C18-14 / 第19回 C19-06)。
+  const SUPPORTED = ["ja", "en", "zh-CN", "zh-TW", "ko", "vi"];
+  const FALLBACKS = {
+    // region variant
+    "zh-HK": "zh-TW", "zh-MO": "zh-TW", "zh-SG": "zh-CN",
+    // script tag (第19回 C19-06: Android 中華圏 / ChromeOS で zh-Hans-CN を返す経路の対応)
+    "zh-Hans": "zh-CN", "zh-Hans-CN": "zh-CN", "zh-Hans-SG": "zh-CN",
+    "zh-Hant": "zh-TW", "zh-Hant-TW": "zh-TW", "zh-Hant-HK": "zh-TW", "zh-Hant-MO": "zh-TW",
+    // Phase D 復活予定: "pt-PT": "pt-BR"
+  };
+  // 第19回 C19-05: navigator === null (typeof null === "object" 経路) も空 nav にフォールバックする
+  const nav = (typeof navigator !== "undefined" && navigator !== null) ? navigator : {};
   const raws = Array.isArray(nav.languages) && nav.languages.length > 0
     ? nav.languages
     : [nav.language || "ja"];
@@ -888,16 +896,17 @@ function detectLang() {
 **手動 override**: SettingsModal の「くわしい せってい」節に言語セレクトを置く（§4.2.1 の情報階層化方針）。`lang: "auto" | <SUPPORTED>` を Settings に持たせる。
 
 **effectiveLang の保持場所**（第13回 C13-15 で明文化）:
-- `Settings.lang` は常に `"auto" | <SUPPORTED>` のみ localStorage に保存 (Phase B 時点 3 値、Phase C で 7 値、Phase D で 9 値に拡張)
+- `Settings.lang` は常に `"auto" | <SUPPORTED>` のみ localStorage に保存 (Phase C 時点 7 値、Phase D で 9 値に拡張予定)
 - 起動時に `effectiveLang = (settings.lang === "auto" ? detectLang() : settings.lang)` を算出
 - `effectiveLang` は **I18n namespace の `I18n.current`** に保持（React 外シングルトン）
 - SettingsModal で lang 変更時は (1) `Storage.saveSettings` (2) `I18n.current = effectiveLang` 再計算 (3) App 再描画 の順で反映する
 - Util.t は `I18n.current` を参照するので React context 伝搬は不要（テスト容易性を優先した設計判断）
 
-**pre-mount text の多言語対応非対象**（第17回 C17-14）:
+**pre-mount text の多言語対応非対象**（第17回 C17-14 / 第19回 C19-19 Phase C 再確認、結論維持）:
 - `<title>` / noscript `<h1>` + `<p>` / loading `<h1>` + `<p>` は React マウント前に表示されるため Util.t が使えず、多言語対応の対象外
 - `<html lang="ja">` 下である限り ja 固定のひらがな表記（`くくどうじょう` / `このアプリを つかうには JavaScript を ゆうこうにしてね` / `よみこみちゅう…`）を採用する（§8.9.2 の主タイトル決定と整合）
 - 将来 `<html lang>` を Settings.lang と同期する場合（Phase B 以降、第17回 C17-09 参照）でも pre-mount text 自体は ja 固定のまま維持する。多言語化には複数の noscript コピーを持たせる等の力技が必要で、JS 有効下でも限定的な状況しか改善しない（割り切り）
+- **第19回 C19-19 Phase C 再確認結果**: Phase C で zh-CN / zh-TW / ko / vi の 4 言語を追加したことにより pre-mount で ja 表示を見るユーザーが増加したが、構造的解消アイデアは出ず known limitation 維持。「JS 有効化後 ~50ms で React mount → 正しい言語に切替」が現実的な落としどころ
 
 #### 8.9.4 Babel Standalone 制約下の実装方針
 
@@ -976,16 +985,32 @@ v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `W
 - 数字表記はアラビア数字で全言語統一（実装負担が軽い / 中国語 `〇一二` / 漢数字 `〇壱弐` は使わない）
 - a11y 文言（`aria-label` / `role="radio"` の aria-label）も翻訳対象
 - `Util.t` の戻り値を HTML に直接流し込まない（innerHTML 禁止、React は既定で text ノード化するので問題なし）
+- **英語の単複処理は単一形で押通す**（第18回 C18-12 / 第19回 C19-17 / 子供向け UI 許容判断）: `"1 questions"` / `"1 days ago"` / `"1 times"` 等の単複文法違反は子供向け平易さを優先して許容する。`Intl.PluralRules` による分岐は導入しない（実装複雑化と翻訳メンテナンスコスト増を避ける）。英語ネイティブ視点の軽度違和感は「翻訳フィードバック募集」Issue で個別判断
+- **正解 / 不正解 feedback の suffix 規約**（第19回 C19-11 / index.html L4299 注釈）: `quiz.feedback.wrong.answerSuffix` の値は「ja/ko のように span との間にスペースが必要な言語は leading space を内包」「en/zh-CN/zh-TW/vi のように句点で終わる言語は leading space なし」のルールに従う。JSX 側は span と suffix の間に `{" "}` を入れない (placeholder 形式が固定化された結果の妥協、validate-i18n では拾えない silent regression を tests/util-t.test.mjs の言語別 assertion でロックする)
+- **ja/ko の name + 助詞の活用揺れ**: 韓国語 (ko) の助詞 (`(으)로` / `이/가` / `을/를`) は母音/子音バッチムで形が変わる。子供 UI で正しさを保つため `{name}님` のように buffer (-님 honorific 等) で挟むパターンを採用、または `(으)로` 両形併記を許容する
 
-#### 8.9.7 配布版サイズへの影響（C12-20 上方修正 / 第17回 C17-08 再上方修正）
+#### 8.9.7 配布版サイズへの影響（C12-20 上方修正 / 第17回 C17-08 再上方修正 / 第19回 C19-07 Phase C 実測反映）
 
-- **1 言語あたり +5〜14 KB 想定**（UI 文言 100〜200 キー × 平均 30 文字 + a11y 文言 + WelcomeNotice 長文 + エラーメッセージ）
-- 日本語 / 中韓は UTF-8 3 バイト/文字なので上限側に寄る
-- **構造固定費 +2〜3 KB**（I18n namespace / Util.t / detectLang / SettingsModal 言語セレクト UI / loadSettings lang 正規化 — 言語数に依らず定額で一度だけ計上）
-- **Phase A ja 単独実測値**: `+16,744 B`（v1.1.0 baseline 368,758 B → Phase A 完了 385,502 B）= 固定費 +2.5 KB + ja 辞書 +14 KB 相当（第17回 C17-08 実測）
-- **Phase B en 追加実測値**: `+8,791 B`（Phase A 完了 385,502 B → Phase B 完了 394,293 B）= applyEffectiveLang ヘルパー 約 +0.5 KB + en 辞書 約 +8.3 KB（ASCII 1 バイト中心のため ja の約 60%）
-- §7.4 サイズ予算を 3 MB 非圧縮 / 1 MB zip に緩和したため、**Phase D（8 言語フル実装）+100〜115 KB でも余裕あり**（従前 +80〜100 KB から上方修正、現行構造固定費 +2.5 KB + 8 言語 × 約 12〜14 KB = 約 +100〜114 KB 試算）
-- **Phase B 完了時点の Phase D 可否再評価（C12-20 消化）**: ja 14 KB / en 8.3 KB の実測から外挿すると、Phase C (zh-CN / zh-TW / ko の CJK 系 約 14 KB × 3 + vi 9〜10 KB) + Phase D (es / pt-BR 各 8〜9 KB) の追加総量は約 +70 KB 見込み。Phase B 時点 394 KB + 70 KB = 約 464 KB で、1 MB 警告しきい値の 44% 程度・3 MB FAIL の 15% 程度に収まる。**Phase C / D 実装に対する配布版サイズ懸念は解消、実装継続判断可**（需要とメンテナンスコスト側の判断のみ残る）
+**実測ベース予測表**（Phase A〜C 実測値で校正、Phase D は外挿予測）:
+
+| 言語 | 系統 | 実測 / 予測バイト | 根拠 |
+|------|------|-----------------|------|
+| ja | CJK hiragana+kanji | **14 KB (実測)** | Phase A 差分 +16,744 B のうち固定費 +2.5 KB を控除 |
+| en | Latin ASCII | **8.3 KB (実測)** | Phase B 差分 +8,791 B のうち applyEffectiveLang ヘルパー +0.5 KB を控除 |
+| zh-CN + zh-TW + ko + vi | 4 言語まとめ | **+36 KB (実測)** | Phase B 完了 394,293 B → Phase C 完了 436,031 B (= 426 KB)。1 言語あたり平均 9 KB |
+| es / pt-BR (Phase D 予測) | Latin | 各 8〜9 KB | en 同等 |
+| **8 言語合計予測** | — | **約 +90〜110 KB** | 構造固定費 +2.5 KB + 8 言語 × 平均 11〜13 KB |
+
+**実測経過**:
+- v1.1.0 baseline: 368,758 B
+- Phase A 完了 (ja 単独 / 第17回 C17-08): 385,502 B (`+16,744 B`)
+- Phase B 完了 (en 追加 / 第18回): 394,293 B (`+8,791 B`)
+- **Phase C 完了 (zh-CN/zh-TW/ko/vi 4 言語追加 / 第19回): 436,031 B (`+41,738 B`、約 +36 KB ≒ 1 言語あたり 9 KB)**
+
+**Phase C 着地評価** (C12-20 / C18-07 / C19-07 消化):
+- 1 MB 警告しきい値の **41.6%** (436 KB / 1024 KB)、3 MB FAIL の **14%**
+- Phase D 完了予測 ~454 KB (+18 KB) で、1 MB 余裕枠 568 KB を残す
+- **配布版サイズ懸念は完全解消**。実装継続判断はメンテナンスコスト / ネイティブ訳改善依頼の到達速度のみ
 
 #### 8.9.8 段階実装の推奨順序
 
@@ -1004,16 +1029,16 @@ v1.1.0 で導入した `SLOW_THRESHOLD_PRESETS` および v1.0.0 から残る `W
 - `lang` がサポート外値（`"xx-XX"` 等、localStorage 手編集の異常値 / Phase C/D 未実装言語）→ `"auto"` に正規化
 - 実装は C11-06 (`wrongWeightBoost` プリセット外正規化) と同パターン:
   ```js
-  // 第18回 C18-14: Phase B 時点では実装済 2 言語 + auto に縮約。
-  // Phase C で zh-CN/zh-TW/ko/vi、Phase D で es/pt-BR を MESSAGES 追加と同じ commit で 1 行ずつ拡張。
-  const SUPPORTED_LANGS = ["auto", "ja", "en"];
+  // Phase C (v1.3.0): 初期 6 言語フル展開で 7 値に拡張済 (第18回 C18-14 / 第19回 C19-07)。
+  // Phase D で es/pt-BR を MESSAGES 追加と同じ commit で本配列も 1 行ずつ拡張する運用。
+  const SUPPORTED_LANGS = ["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi"];
   if (SUPPORTED_LANGS.indexOf(merged.lang) === -1) merged.lang = "auto";
   ```
 
 **`loadSettings` と `detectLang` の契約差**（第17回 C17-10）:
 
 - `Storage.loadSettings` は **SUPPORTED_LANGS 完全一致のみ保持**。`"en-US"` / `"zh"` / `"JA"` 等 BCP-47 拡張タグや大文字ゆれ / 短縮形 / Phase C/D 未実装言語は **`"auto"` に正規化** する。再検出はブラウザ言語設定経由 (`detectLang`) に委ねる
-- `detectLang` は `navigator.languages` / `navigator.language` の raw BCP-47 タグに対し派生フォールバック（Phase B 時点は `en-US` → `en` のみ。Phase C で `zh-HK` → `zh-TW` / `zh-SG` → `zh-CN`、Phase D で `pt-PT` → `pt-BR` / base 部分一致）を適用する（§8.9.3）
+- `detectLang` は `navigator.languages` / `navigator.language` の raw BCP-47 タグに対し派生フォールバック（Phase C 時点で `en-US` → `en` の base 部分一致 + region: `zh-HK`/`zh-MO` → `zh-TW` / `zh-SG` → `zh-CN` + script tag: `zh-Hans*` → `zh-CN` / `zh-Hant*` → `zh-TW` (第19回 C19-06)。Phase D で `pt-PT` → `pt-BR` 復活）を適用する（§8.9.3）
 - 両者の非対称は意図的。SettingsModal UI は `SUPPORTED_LANGS` の値を直接選ばせる設計で、BCP-47 完全タグの手動入力経路を持たない。手編集 localStorage の非 canonical 値や Phase C/D 未実装言語は `"auto"` に戻して再検出するのが最も単純
 - 手編集で `"en-US"` を入れて **selected な lang として保持したい**要件が出た場合は、本節を「派生フォールバック対応」に更新する判断が必要（Phase D 以降の拡張候補）
 

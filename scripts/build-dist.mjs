@@ -123,7 +123,10 @@ writeFileSync(INPUT_CSS, "@tailwind base;\n@tailwind components;\n@tailwind util
 // 一時 HTML を生成し、それを --content に渡す。dist 出力には MESSAGES 本体は含まれる。
 // 第17回 C17-06: 属性追加 (`data-version="1"` 等) で silent にマッチ不成立する退行を避けるため
 //   `[^>]*>` で属性拡張許容。tests/helpers/load-core.mjs の SCRIPT_RE と命名規則を揃える。
-const MESSAGES_RE = /<script\s+type="application\/json"\s+id="kuku-messages"[^>]*>[\s\S]*?<\/script>/;
+// 第19回 C19-10 / C18-06: lookahead 化により属性順序非依存。HTML formatter / Prettier の
+//   属性 alphabetical sort で `id` → `type` 順に並び替わっても match する。validate-i18n.mjs
+//   と完全同形式 (SPEC §7.2.1.1 同期責任表)。
+const MESSAGES_RE = /<script\s+(?=[^>]*type="application\/json")(?=[^>]*id="kuku-messages")[^>]*>[\s\S]*?<\/script>/;
 if (!MESSAGES_RE.test(html)) {
   throw new Error(
     "index.html に <script type=\"application/json\" id=\"kuku-messages\"> が見つかりません。\n" +
