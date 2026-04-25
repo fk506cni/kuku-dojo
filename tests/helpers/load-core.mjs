@@ -170,5 +170,13 @@ export function loadCore(opts = {}) {
   ].join("\n");
 
   const exported = vm.runInContext(code, sandbox, { filename: "core-extracted.js" });
-  return { ...exported, localStorage: fakeLS, random };
+  // Util.detectLang() は呼出時に typeof navigator をチェックするため、テスト側で navigator を
+  // 動的に差替え可能にする (Phase C / SPEC §8.9.3 の zh-HK/zh-MO/zh-SG fallback テスト用)。
+  // sandbox の global を後から書き換えても detectLang() は最新値を参照する。
+  return {
+    ...exported,
+    localStorage: fakeLS,
+    random,
+    setNavigator(nav) { sandbox.navigator = nav; },
+  };
 }
