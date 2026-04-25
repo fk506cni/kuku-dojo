@@ -8,6 +8,53 @@
 
 （次回 v1.y.0 / v1.0.y に含める変更があればここに記載）
 
+## [1.3.0] - 2026-04-25
+
+**機能リリース**: 多言語対応 Phase C で **初期 6 言語フル展開** (zh-CN / zh-TW / ko / vi の 4 言語追加)。zh-HK/zh-MO/zh-SG の region variant + zh-Hans/zh-Hant の script tag フォールバックも実装し、Android 中華圏ブラウザの自動判定を改善。第19回敵対的レビュー対応 22 件を吸収。**適応出題アルゴリズム本体は変更なし** (proficiencyLevel / updateWeight 不変)、v1.0.x / v1.1.0 / v1.2.0 の成績データは互換維持で持ち上がります。
+
+### Added
+
+- **多言語対応 Phase C** (zh-CN / zh-TW / ko / vi の 4 言語追加、SPEC §8.9)
+  - `MESSAGES.zh-CN` / `MESSAGES.zh-TW` / `MESSAGES.ko` / `MESSAGES.vi` 各 197 キー (base 193 + 言語名 4)
+  - 副題は SPEC §8.9.2 採用: 「九九道场 — 快乐记乘法表」「九九道場 — 快樂記乘法表」「구구단 도장 — 곱셈구구를 즐겁게」「Đạo Trường Cửu Chương — Học bảng cửu chương vui vẻ」(タイトル本体は全言語 `kuku-dojo` 不変 / C12-18)
+  - endonym 統一: 中文（简体）/ 中文（繁體）/ 한국어 / Tiếng Việt
+  - **4 言語は機械翻訳ベース** で公開、ネイティブ訂正は GitHub Issues で募集
+- **`detectLang()` の region / script 両対応 FALLBACKS** (SPEC §8.9.3 / 第19回 C19-06):
+  - region variant: `zh-HK` / `zh-MO` → `zh-TW`、`zh-SG` → `zh-CN`
+  - script tag: `zh-Hans` / `zh-Hans-CN` / `zh-Hans-SG` → `zh-CN`、`zh-Hant` / `zh-Hant-TW` / `zh-Hant-HK` / `zh-Hant-MO` → `zh-TW` (Android 中華圏 / ChromeOS が `zh-Hans-CN` 等を返す経路の対応)
+- **`detectLang()` の navigator=null ガード** (第19回 C19-05): `typeof null === "object"` を素通る経路を防御、極端環境での起動失敗を回避
+- **言語手動切替**: SettingsModal「くわしい せってい」内の言語セレクタが 3 ボタン → 7 ボタンに拡張 (auto / にほんご / English / 中文（简体）/ 中文（繁體）/ 한국어 / Tiếng Việt)
+- **新規テスト**: `tests/util-detectLang.test.mjs` 22 ケース (SUPPORTED 完全一致 / base 部分一致 / region+script FALLBACKS / navigator 異常入力 / 配列重複 / 大文字 SUPPORTED など)
+- **新規テスト**: `tests/util-t.test.mjs` に 6 言語スモークテスト (全 197 keys × 6 lang) + 言語別 assertion (home.greeting / answerSuffix / app.subtitle 構造 lock)
+- **CI: `validate-i18n.mjs` の zh-CN ⇄ zh-TW 簡繁交差検査** (第19回 C19-15): 既知 problematic pair リスト (设/設, 开/開, 时/時, ...) で簡繁取り違えを機械検出。endonym keys (`settings.lang.name.*`) は除外して偽陽性を回避
+
+### Changed
+
+- **`SUPPORTED_LANGS` を 7 値に拡張**: `["auto", "ja", "en", "zh-CN", "zh-TW", "ko", "vi"]`。Phase D で `es` / `pt-BR` を MESSAGES 追加と同じ commit で 1 行ずつ拡張する運用継続
+- **`Settings.lang` typedef** / `Storage.loadLangPreference` JSDoc / `kuku_lang_preference` 値域コメントを Phase C 7 値に同期
+- **SPEC §8.9.3 / §8.9.6 / §8.9.7 / §8.9.9** を Phase C 実測値 (426 KB / 1 言語あたり 9 KB) と 7 値に同期更新 (第19回 C19-07)
+- **`MESSAGES_RE` を lookahead 化** (SPEC §7.2.1.1 同期責任表): `scripts/validate-i18n.mjs` / `scripts/build-dist.mjs` 両方を属性順非依存に変更。HTML formatter / Prettier の属性 alphabetical sort 耐性を獲得 (第18回 C18-06 / 第19回 C19-10)
+- **`applyEffectiveLang(...)` を `Util.applyEffectiveLang(...)` に統一**: index.html 4 箇所を namespace 経由呼出に変更、CLAUDE.md C03-09 規約遵守 (第18回 C18-09 / 第19回 C19-09)
+- **`quiz.feedback.wrong.answerSuffix` の構造改修** (第18回 C18-11 / 第19回 C19-11): JSX の hardcoded `{" "}` を削除し、各言語 suffix が必要な leading space を内包する規約に変更 (en/zh-CN/zh-TW/vi は句点で終わり space なし、ja/ko は leading space で span との区切り維持)
+- **en `app.subtitle` のネイティブ呼称付与** (第19回 C19-12): `"Multiplication Tables Practice"` → `"Kuku Dojo — Multiplication Tables Practice"`、他 5 言語の「ネイティブ呼称 + " — " + 説明」構造に整合
+- **README ロードマップ + 配布版サイズ表記**: v1.3.0 公開日付追記、`約 330 KB` → `約 426 KB` に同期 (第19回 C19-04)
+- **CLAUDE.md L157 `kuku_lang_preference` 値域記述** を Phase C 7 値に同期 (第19回 C19-08)
+
+### Internal
+
+- node:test スイート 78 → **104 件** (`util-detectLang.test.mjs` 新規 22 / `util-t.test.mjs` 21→25 / `storage-langPreference.test.mjs` / `storage-loadSettings.test.mjs` の supported 配列を 7 値に拡張)
+- `tests/helpers/load-core.mjs`: `setNavigator(nav)` ヘルパー追加 (VM sandbox の navigator 動的差替え用) / `SUPPORTED_LANGS` を export し テスト側のリテラル二重管理を解消 (第19回 C19-22)
+- 第19回敵対的レビュー対応: Critical 4 (C19-01〜04) + Major 7 (C19-05〜11) + Minor 11 (C19-12〜21) + Info 6 (C19-22〜28) の **22 件すべて吸収** (詳細は `docs/__archives/report19.md`)
+- 配布版サイズ実測: Phase B 完了 394,293 B → **Phase C 完了 436,031 B** (`+41,738 B` ≒ +36 KB / 1 言語あたり 9 KB / 1 MB 警告しきい値の 41.6%、3 MB FAIL の 14%)
+
+### Known limitations / Phase D 以降に繰越
+
+- **C18-12 / C19-17 en 単複未対応**: `"1 questions"` / `"1 days ago"` 等は子供向け平易さ優先で許容、SPEC §8.9.6 に明文化
+- **C18-13 / C19-18 en MM/DD 固定**: `login.lastPlayed.dateFormat` の en `"{month}/{day}"` は en-GB / en-AU の DD/MM と曖昧。Phase D で `Intl.DateTimeFormat` 化を検討
+- **C18-16 / C19-19 pre-mount `<html lang="ja">` 固定**: 4 言語追加で影響範囲増だが構造的解消アイデア無し、known limitation 維持
+- **C18-01 / C19-20 useEffect 1-frame flash**: アカウント切替時の旧言語 1 フレーム描画は Phase D 以降で `useLayoutEffect` / `useSyncExternalStore` 化を検討
+- **Step 12.C-6 多言語フォント実機検証 / Step 12.C-7 各言語スクリーンショット**: 残タスク (実機タブレット作業必要)
+
 ## [1.2.0] - 2026-04-25
 
 **機能リリース**: 多言語対応 (Phase A: I18n 基盤 + ja / Phase B: en + Login 言語復元) で日本語と英語の 2 言語に対応。アプリの利用可能な言語をブラウザの言語設定から自動判定し、SettingsModal の「くわしい せってい」から手動切替も可能。第18回敵対的レビュー対応 9 件 + ユーザー判断起点の Login 言語復元（案 A）を同梱。**適応出題アルゴリズム本体は変更なし** (proficiencyLevel / updateWeight 不変)、v1.0.x / v1.1.0 の成績データは互換維持で持ち上がります。
